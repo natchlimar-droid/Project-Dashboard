@@ -1,0 +1,38 @@
+﻿test_code,loinc,test_name,unit,ref_low,ref_high,panel
+FBS,1558-6,Fasting blood sugar,mg/dL,70.0,99.0,Glycemic
+HBA1C,4548-4,Hemoglobin A1c,%,4.0,5.6,Glycemic
+INSULIN,27873-9,Fasting insulin,uIU/mL,2.6,24.9,Glycemic
+HOMA_IR,-,HOMA-IR (calculated),index,0.0,2.5,Glycemic
+TC,2093-3,Total cholesterol,mg/dL,0.0,199.0,Lipid
+LDL,18262-6,LDL-C (direct),mg/dL,0.0,129.0,Lipid
+HDL,2085-9,HDL-C,mg/dL,40.0,999.0,Lipid
+TG,2571-8,Triglyceride,mg/dL,0.0,149.0,Lipid
+NON_HDL,43396-1,Non-HDL cholesterol (calculated),mg/dL,0.0,159.0,Lipid
+APOB,1884-6,Apolipoprotein B,mg/dL,0.0,99.0,Lipid
+LPA,10835-7,Lipoprotein(a),mg/dL,0.0,49.0,Lipid
+HSCRP,30522-7,hs-CRP,mg/L,0.0,2.9,Inflammation
+BUN,3094-0,Blood urea nitrogen,mg/dL,7.0,20.0,Kidney
+CREAT,2160-0,Creatinine,mg/dL,0.5,1.2,Kidney
+EGFR,98979-8,eGFR CKD-EPI 2021,mL/min/1.73m2,90.0,999.0,Kidney
+UACR,9318-7,Urine albumin/creatinine ratio,mg/g,0.0,29.0,Kidney
+URIC,3084-1,Uric acid,mg/dL,2.5,7.0,Kidney
+AST,1920-8,AST (SGOT),U/L,0.0,40.0,Liver
+ALT,1742-6,ALT (SGPT),U/L,0.0,40.0,Liver
+ALP,6768-6,Alkaline phosphatase,U/L,40.0,129.0,Liver
+GGT,2324-2,Gamma GT,U/L,0.0,60.0,Liver
+ALB,1751-7,Albumin,g/dL,3.5,5.2,Liver
+TBIL,1975-2,Total bilirubin,mg/dL,0.2,1.2,Liver
+HB,718-7,Hemoglobin,g/dL,12.0,17.0,CBC
+HCT,4544-3,Hematocrit,%,36.0,50.0,CBC
+WBC,6690-2,White blood cells,10^3/uL,4.0,10.5,CBC
+PLT,777-3,Platelets,10^3/uL,150.0,450.0,CBC
+MCV,787-2,Mean corpuscular volume,fL,80.0,100.0,CBC
+FERRITIN,2276-4,Ferritin,ng/mL,30.0,400.0,CBC
+TSH,3016-3,TSH,uIU/mL,0.4,4.5,Thyroid
+FT4,3024-7,Free T4,ng/dL,0.9,1.7,Thyroid
+VITD,62292-8,25-OH Vitamin D,ng/mL,30.0,100.0,Vitamin
+CEA,2039-6,CEA,ng/mL,0.0,5.0,Tumor marker
+AFP,1834-1,AFP,ng/mL,0.0,10.0,Tumor marker
+PSA,2857-1,PSA total,ng/mL,0.0,4.0,Tumor marker
+CA125,10334-1,CA-125,U/mL,0.0,35.0,Tumor marker
+CA199,24108-3,CA 19-9,U/mL,0.0,37.0,Tumor marker

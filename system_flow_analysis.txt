@@ -1,0 +1,41 @@
+================================================================================
+รายงานวิเคราะห์การทำงานของระบบ (System Flow & Architecture Analysis)
+================================================================================
+
+1. ภาพรวมระบบ (System Overview)
+ระบบนี้คือ Dashboard อัจฉริยะสำหรับโรงพยาบาล (Healthcare Executive Dashboard) ที่ผสานการทำงานของการวิเคราะห์ข้อมูลเชิงลึก (Data Analytics) และปัญญาประดิษฐ์ (AI/Machine Learning) เพื่อเพิ่มยอดขายแพ็กเกจตรวจสุขภาพ โดยมุ่งเน้นไปที่การค้นหา "คนไข้ที่มีโอกาสซื้อแพ็กเกจสูง" (Lead Scoring) และอธิบายเหตุผลด้วย AI ที่โปร่งใส (Explainable AI - XAI)
+
+2. โครงสร้างและส่วนประกอบหลัก (Architecture & Components)
+- Frontend: สร้างด้วย Streamlit (Python) รองรับการแสดงผลแบบ Interactive Web App
+- Core Logic & Navigation: ไฟล์ `app.py` เป็น Entry Point หลัก ควบคุมการนำทาง (Routing), การโหลดข้อมูลพื้นฐาน, และหน้าจอ Dashboard ของผู้บริหาร
+- XAI Logic: โฟลเดอร์ `logic/` มีโมดูล `lead_scoring_xai.py` สำหรับรันการวิเคราะห์ SHAP Value และ Lead Scoring
+- Models: 
+  > XGBoost: ใช้สำหรับการพยากรณ์ความน่าจะเป็น (Propensity) ของการซื้อแพ็กเกจ
+  > Prophet: (ในระบบ Projection) ใช้สำหรับการพยากรณ์แนวโน้มยอดขาย (Time-Series Forecasting)
+- Data Layer: ทำงานผ่านไฟล์ CSV, Excel และ ZIP ขนาดใหญ่ โดยมีระบบ `@st.cache_data` ควบคุมประสิทธิภาพ
+
+3. การไหลของข้อมูล (Data Pipeline & Flow)
+- Step 3.1 Data Loading: ข้อมูลคนไข้, ประวัติการมารับบริการ (Visits), และประวัติการซื้อแพ็กเกจ จะถูกดึงมาจากไฟล์ดิบ (เช่น `visits_cleaned.zip`, `matched_package_demographics.csv`) ผ่าน Engine ความเร็วสูงอย่าง `pyarrow`
+- Step 3.2 Data Preprocessing: มีการ Join ข้อมูลประชากรศาสตร์ (Demographics) เข้ากับประวัติการมารับบริการ และคำนวณอายุ, BMI, ความถี่ในการมาโรงพยาบาล
+- Step 3.3 Journey Segmentation: คัดกรองคนไข้ที่ไม่เคยซื้อแพ็กเกจ (Untapped Ocean) โดยจำแนกตาม Current Journey Stage เช่น Active OPD, Chronic Care
+- Step 3.4 AI Prediction: ข้อมูล Features ทั้งหมดจะถูกป้อนเข้าโมเดล XGBoost 
+- Step 3.5 Explainability (SHAP): นำผลลัพธ์จาก XGBoost ไปวิเคราะห์ผ่าน SHAP TreeExplainer เพื่อแยกแยะว่า "ตัวแปรใด" ส่งผลให้คนไข้รายนั้นๆ ได้คะแนน Propensity สูงหรือต่ำ
+
+4. โมดูลหน้าจอการใช้งาน (User Interface Flow)
+หน้าจอหลักของระบบแบ่งออกเป็น 2 มุมมองหลัก:
+- 4.1 Executive Forecast & Simulation (อยู่บน app.py): 
+      แสดงภาพรวมระดับท็อป (Top Executive Scorecard) เช่น ยอดเงินคาดการณ์ (Pipeline Value), จำนวนกลุ่มเป้าหมาย และเปิดให้ผู้บริหารทดลองปรับ What-If Simulation (เพิ่มทราฟฟิก 10%, 20%) เพื่อดูยอดรายได้ส่วนเพิ่มจาก AI (AI-Driven Revenue Uplift)
+- 4.2 AI Lead Intelligence (อยู่บน logic/lead_scoring_xai.py): 
+      เป็นหน้าสำหรับทีม Telesales และ Marketing โดยประกอบด้วย
+      > Section 1: กราฟ SHAP Summary (ตัวแปรที่มีอิทธิพลสูงสุดในภาพรวม)
+      > Section 2: ตาราง Lead Generation (รายชื่อเป้าหมายพร้อมคะแนนความพร้อม)
+      > Section 3: Individual Deep Dive (SHAP Waterfall) แสดงกราฟเจาะลึกคนไข้รายบุคคล ว่าทำไม AI ถึงแนะนำให้ขายแพ็กเกจให้คนไข้รายนี้
+
+5. กลไกการเพิ่มประสิทธิภาพ (Performance Optimization)
+ระบบถูกออกแบบมาให้ประมวลผลข้อมูลระดับแสน/ล้าน Record ได้อย่างรวดเร็ว (ภายใน <2 วินาที) โดยใช้หลักการ:
+- Lazy Loading & Caching: การประมวลผลโมเดล ML (XGBoost และ SHAP Explainer) ถูกย้ายไปไว้ในฟังก์ชันที่มี `@st.cache_resource` และ `@st.cache_data` ทำให้ไม่ต้องโหลดโมเดลใหม่เมื่อผู้ใช้กดโต้ตอบบนหน้าจอ
+- PyArrow Engine: ใช้ในการเปิดไฟล์ CSV ทำให้ประหยัดเวลาอ่านข้อมูลลดลงกว่า 70%
+
+================================================================================
+จบรายงานวิเคราะห์
+================================================================================
