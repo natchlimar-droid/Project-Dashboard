@@ -1,0 +1,230 @@
+/* =============================================================================
+   PrimeCare Wellness Clinic — App Shell Design System (app_shell.css)
+   Typography: IBM Plex Sans Thai
+   Design Philosophy: Clean, Accessible, Performance-Optimized Healthcare UI
+   ============================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600;800&display=swap');
+
+:root {
+  --primary-teal: #0F766E;
+  --primary-teal-light: #CCFBF1;
+  --primary-teal-hover: #0D9488;
+  --critical-red: #DC2626;
+  --critical-red-light: #FEE2E2;
+  --warning-amber: #D97706;
+  --warning-amber-light: #FEF3C7;
+  --slate-900: #0F172A;
+  --slate-700: #334155;
+  --slate-600: #475569;
+  --slate-500: #64748B;
+  --slate-200: #E2E8F0;
+  --slate-100: #F1F5F9;
+  --slate-50: #F8FAFC;
+  --font-base: 'IBM Plex Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Global App Typography & Surface */
+html, body, [class*="css"], .stApp {
+  font-family: var(--font-base) !important;
+  color: var(--slate-900);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-base) !important;
+  font-weight: 700;
+  color: var(--slate-900);
+  letter-spacing: -0.015em;
+}
+
+/* ── Brand Card (Flat & Professional) ─────────────────────────────────────── */
+.clinic-brand-card {
+  background-color: var(--primary-teal);
+  border-radius: 12px;
+  padding: 16px;
+  color: #FFFFFF;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 6px rgba(15, 118, 110, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.clinic-brand-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.clinic-brand-icon {
+  background: rgba(255, 255, 255, 0.2);
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.clinic-brand-title {
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  line-height: 1.25;
+}
+
+.clinic-brand-tagline {
+  font-size: 0.74rem;
+  color: var(--primary-teal-light);
+  margin-top: 2px;
+  font-weight: 400;
+}
+
+/* ── Navigation List Styling ─────────────────────────────────────────────── */
+.stRadio > div[role="radiogroup"] {
+  gap: 6px;
+}
+
+.stRadio > div[role="radiogroup"] > label {
+  background: #FFFFFF;
+  border: 1px solid var(--slate-200);
+  border-radius: 10px;
+  padding: 10px 14px !important;
+  transition: all 0.18s ease-in-out;
+  cursor: pointer;
+  margin-bottom: 4px;
+}
+
+.stRadio > div[role="radiogroup"] > label:hover {
+  background: var(--slate-50);
+  border-color: var(--primary-teal-hover);
+}
+
+.stRadio > div[role="radiogroup"] > label[data-checked="true"],
+.stRadio > div[role="radiogroup"] > label:has(input:checked) {
+  background-color: #F0FDFA !important;
+  border-color: var(--primary-teal) !important;
+  border-left: 4.5px solid var(--primary-teal) !important;
+  box-shadow: 0 1px 3px rgba(15, 118, 110, 0.08);
+}
+
+.stRadio > div[role="radiogroup"] > label[data-checked="true"] span,
+.stRadio > div[role="radiogroup"] > label:has(input:checked) span {
+  color: var(--primary-teal) !important;
+  font-weight: 600;
+}
+
+/* ── Accessible Nav Breadcrumb ───────────────────────────────────────────── */
+nav.app-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #FFFFFF;
+  border-radius: 10px;
+  border: 1px solid var(--slate-200);
+  font-size: 0.85rem;
+  color: var(--slate-500);
+  margin-bottom: 16px;
+}
+
+nav.app-breadcrumb ol {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+nav.app-breadcrumb li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+nav.app-breadcrumb .breadcrumb-item-active {
+  color: var(--primary-teal);
+  font-weight: 700;
+}
+
+/* ── Error Boundary Container ────────────────────────────────────────────── */
+.error-boundary-card {
+  background: #FEF2F2;
+  border: 1.5px solid #F87171;
+  border-left: 5px solid var(--critical-red);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin: 20px 0;
+}
+
+.error-boundary-title {
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: #991B1B;
+  margin-bottom: 6px;
+}
+
+.error-boundary-desc {
+  font-size: 0.88rem;
+  color: #7F1D1D;
+  line-height: 1.5;
+}
+
+/* ── Empty State Container ───────────────────────────────────────────────── */
+.empty-state-card {
+  background: #FFFFFF;
+  border: 1px dashed var(--slate-300);
+  border-radius: 14px;
+  padding: 40px 20px;
+  text-align: center;
+  margin: 24px 0;
+}
+
+.empty-state-icon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+  color: var(--slate-400);
+}
+
+.empty-state-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--slate-700);
+  margin-bottom: 4px;
+}
+
+.empty-state-desc {
+  font-size: 0.85rem;
+  color: var(--slate-500);
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ── Accessibility & Focus Rings ─────────────────────────────────────────── */
+button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--primary-teal) !important;
+  outline-offset: 2px;
+}
+
+/* ── Reduced Motion Preference ───────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Mobile Responsive Layout ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .clinic-brand-card {
+    padding: 12px 14px;
+  }
+  nav.app-breadcrumb {
+    padding: 8px 12px;
+    font-size: 0.78rem;
+  }
+}

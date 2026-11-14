@@ -2,23 +2,26 @@
 """
 🏥 PrimeCare Wellness Clinic — Main Dashboard Entrypoint
 ======================================================
-Modular Streamlit Application Architecture:
-- styles/theme.css: Centralized design system (unified 4-color palette)
-- services/data_loader.py: Vectorized pandas loaders with @st.cache_data
-- services/ml_engine.py: @st.cache_resource for XGBoost, SHAP, and Prophet
-- views/: Sub-modules for Lead Intelligence, Patient Card, Executive Strategy, and Clinical Tracking
+High-Performance, Secure, and Production-Grade Streamlit Architecture:
+- Lazy Loading: Views and heavy ML models loaded on-demand via Page Registry
+- Security: HTML-escaped clinic branding, zero hardcoded local paths
+- Robustness: Page Registry, Deep Linking (?page=...), and Error Boundary per page
+- Date Presets: Dynamic fiscal/operational date ranges with incomplete-range guard
+- Caching: Theme & Shell CSS cached via @st.cache_data
 """
 from __future__ import annotations
 
+import html
+import importlib
 import os
 import sys
-from datetime import datetime
-from typing import Any, Optional
+from datetime import date, datetime, timedelta
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-# Fallback path injection for environments where plotly/openpyxl reside in project venv
-_scratch_venv = r"C:\Users\Natcha.L\.gemini\antigravity\brain\0c7bc719-21e5-4a7d-941f-b1e53dd4762b\scratch\.venv\Lib\site-packages"
-if os.path.isdir(_scratch_venv) and _scratch_venv not in sys.path:
-    sys.path.insert(0, _scratch_venv)
+# Optional external site-packages path injection via environment variable
+_extra_site_packages = os.environ.get("PRIMECARE_EXTRA_SITE_PACKAGES")
+if _extra_site_packages and os.path.isdir(_extra_site_packages) and _extra_site_packages not in sys.path:
+    sys.path.insert(0, _extra_site_packages)
 
 import pandas as pd
 import streamlit as st
@@ -31,54 +34,168 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Services & Views imports
-from services.data_loader import (
-    load_synthetic_dataset,
-    load_real_sales_data,
-    resolve_patient_lab_snapshot,
-)
-from services.ml_engine import (
-    get_xgboost_model,
-    get_cached_shap_explainer,
-    predict_patient_propensity,
-)
-
-import views.lead_intelligence as view_lead
-import views.patient_card as view_patient
-import views.executive_overview as view_exec
-import views.clinical_tracking as view_clin
-
-# ── Brand Constants ────────────────────────────────────────────────────────────
+# ── Brand Constants & Defaults ────────────────────────────────────────────────
 DEFAULT_CLINIC_NAME = "PrimeCare Wellness Clinic"
 DEFAULT_CLINIC_TAGLINE = "Smart Clinical Intelligence & Healthcare Package Recommendation"
+ANALYSIS_START = date(2025, 1, 1)
 
 
-def get_clinic_name() -> str:
-    """Retrieves current clinic brand name from session state or default."""
-    return st.session_state.get("clinic_brand_name", DEFAULT_CLINIC_NAME)
+# ── Cached CSS Injection ──────────────────────────────────────────────────────
+@st.cache_data(show_spinner=False)
+def load_bundled_css() -> str:
+    """Reads and bundles styles/app_shell.css and styles/theme.css once."""
+    base_dir = os.path.dirname(__file__)
+    css_files = [
+        os.path.join(base_dir, "styles", "app_shell.css"),
+        os.path.join(base_dir, "styles", "theme.css"),
+    ]
+    parts: List[str] = []
+    for fp in css_files:
+        if os.path.exists(fp):
+            try:
+                with open(fp, "r", encoding="utf-8") as f:
+                    parts.append(f.read())
+            except Exception:
+                pass
+    if not parts:
+        return ":root { --primary-color: #0F766E; } .stApp { background-color: #F8FAFC; }"
+    return "\n".join(parts)
 
 
 def inject_css() -> None:
-    """Loads centralized theme CSS from styles/theme.css into Streamlit."""
-    css_path = os.path.join(os.path.dirname(__file__), "styles", "theme.css")
-    if os.path.exists(css_path):
-        with open(css_path, "r", encoding="utf-8") as f:
-            css_content = f.read()
-        st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
-    else:
+    """Injects cached CSS stylesheets into Streamlit head."""
+    bundled = load_bundled_css()
+    st.markdown(f"<style>{bundled}</style>", unsafe_allow_html=True)
+
+
+def get_clinic_name() -> str:
+    """Retrieves current clinic brand name safely from session state."""
+    raw = st.session_state.get("clinic_brand_name", DEFAULT_CLINIC_NAME)
+    cleaned = str(raw).strip()
+    return cleaned if cleaned else DEFAULT_CLINIC_NAME
+
+
+# ── Page Registry & Route Definitions ─────────────────────────────────────────
+PAGES: Dict[str, Dict[str, Any]] = {
+    "exec": {
+        "key": "exec",
+        "title": "ภาพรวมผู้บริหาร",
+        "full_label": "📊 ภาพรวมผู้บริหาร (Executive Overview)",
+        "icon": "📊",
+        "breadcrumb": "📊 ภาพรวมผู้บริหาร",
+        "module": "views.executive_overview",
+        "func": "render_executive_overview_view",
+    },
+    "lead": {
+        "key": "lead",
+        "title": "คัดกรองกลุ่มเป้าหมาย",
+        "full_label": "🎯 คัดกรองกลุ่มเป้าหมาย (AI Lead Intelligence)",
+        "icon": "🎯",
+        "breadcrumb": "🎯 คัดกรองกลุ่มเป้าหมาย (AI Lead Intelligence)",
+        "module": "views.lead_intelligence",
+        "func": "render_lead_intelligence_view",
+    },
+    "patient": {
+        "key": "patient",
+        "title": "ข้อมูลผู้รับบริการรายคน",
+        "full_label": "👤 ข้อมูลผู้รับบริการรายคน (Patient Insight Card)",
+        "icon": "👤",
+        "breadcrumb": "🔍 ค้นหาและดูแลผู้รับบริการรายคน",
+        "module": "views.patient_card",
+        "func": "render_patient_card_view",
+    },
+    "clinical": {
+        "key": "clinical",
+        "title": "ติดตามโรคเรื้อรัง",
+        "full_label": "🩺 ติดตามโรคเรื้อรัง (Clinical Command Center)",
+        "icon": "🩺",
+        "breadcrumb": "🩺 ศูนย์ติดตามโรคเรื้อรัง (Clinical Command Center)",
+        "module": "views.clinical_tracking",
+        "func": "render_clinical_tracking_view",
+    },
+}
+
+PAGE_ORDER = ["exec", "lead", "patient", "clinical"]
+
+PAGE_ALIASES: Dict[str, str] = {
+    "exec": "exec",
+    "executive": "exec",
+    "executive overview": "exec",
+    "executive strategy overview": "exec",
+    "ภาพรวมผู้บริหาร": "exec",
+    "📊 ภาพรวมผู้บริหาร": "exec",
+    ":material/insights: executive strategy overview": "exec",
+    "lead": "lead",
+    "lead intelligence": "lead",
+    "ai lead intelligence": "lead",
+    "คัดกรองกลุ่มเป้าหมาย": "lead",
+    "🎯 คัดกรองกลุ่มเป้าหมาย": "lead",
+    "🎯 ai lead intelligence": "lead",
+    ":material/my_location: ai lead intelligence": "lead",
+    "patient": "patient",
+    "patient insight card": "patient",
+    "ข้อมูลผู้รับบริการรายคน": "patient",
+    "👤 ข้อมูลผู้รับบริการรายคน": "patient",
+    "👤 patient insight card": "patient",
+    ":material/search: patient insight card": "patient",
+    "clinical": "clinical",
+    "clinical command center": "clinical",
+    "ติดตามโรคเรื้อรัง": "clinical",
+    "🩺 ติดตามโรคเรื้อรัง": "clinical",
+    ":material/vital_signs: clinical command center": "clinical",
+}
+
+
+def resolve_page_key(raw_input: Optional[str]) -> str:
+    """Resolves arbitrary page names, query params, or aliases to a canonical page key."""
+    if not raw_input:
+        return "patient"
+    norm = str(raw_input).strip().lower()
+    return PAGE_ALIASES.get(norm, "patient")
+
+
+# ── Date Filter Helpers ───────────────────────────────────────────────────────
+def get_date_preset_range(preset_name: str) -> Tuple[date, date]:
+    """Computes dynamic operational date ranges based on chosen preset."""
+    today = date.today()
+    if preset_name == "ปีนี้ (This Year)":
+        return date(today.year, 1, 1), today
+    elif preset_name == "ไตรมาสนี้ (This Quarter)":
+        q_month = ((today.month - 1) // 3) * 3 + 1
+        return date(today.year, q_month, 1), today
+    elif preset_name == "90 วันล่าสุด (Last 90 Days)":
+        return today - timedelta(days=90), today
+    elif preset_name == "30 วันล่าสุด (Last 30 Days)":
+        return today - timedelta(days=30), today
+    # Default: ทั้งหมด (All Time)
+    return ANALYSIS_START, today
+
+
+# ── Error Boundary Wrapper ────────────────────────────────────────────────────
+def run_with_error_boundary(page_title: str, func: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
+    """Executes a view function protected by an isolated visual error boundary."""
+    try:
+        func(*args, **kwargs)
+    except Exception as exc:
+        escaped_title = html.escape(page_title)
         st.markdown(
-            """
-            <style>
-            :root { --primary-color: #0F766E; }
-            .stApp { background-color: #F8FAFC; }
-            </style>
+            f"""
+            <div class="error-boundary-card">
+                <div class="error-boundary-title">⚠️ เกิดข้อผิดพลาดในการโหลดหน้า {escaped_title}</div>
+                <div class="error-boundary-desc">
+                    ระบบไม่สามารถประมวลผลข้อมูลในหน้านี้ได้ชั่วคราว ข้อมูลในส่วนอื่นของระบบยังคงทำงานได้ตามปกติ 
+                    กรุณากดปุ่ม <b>"รีเฟรชข้อมูล"</b> ในแถบเมนูซ้าย หรือตรวจสอบรายละเอียดข้อผิดพลาดด้านล่าง
+                </div>
+            </div>
             """,
             unsafe_allow_html=True,
         )
+        with st.expander("🔍 ดูรายละเอียดข้อผิดพลาดทางเทคนิค (Technical Error Details)"):
+            st.exception(exc)
 
 
 # ==============================================================================
-# Main Navigation & Page Controller
+# Main Controller
 # ==============================================================================
 def main() -> None:
     inject_css()
@@ -87,17 +204,36 @@ def main() -> None:
         st.session_state["clinic_brand_name"] = DEFAULT_CLINIC_NAME
 
     cname = get_clinic_name()
+    escaped_cname = html.escape(cname)
+    escaped_tagline = html.escape(DEFAULT_CLINIC_TAGLINE)
 
-    # ── Sidebar Brand Header ──────────────────────────────────────────────────
+    # ── 1. Resolve Navigation State (Deep Link & Priority Router) ─────────────
+    # Priority: pending_nav_section > query_params['page'] > session_state > default
+    query_page = st.query_params.get("page")
+    if "pending_nav_section" in st.session_state:
+        target_page_key = resolve_page_key(st.session_state.pop("pending_nav_section"))
+    elif query_page:
+        target_page_key = resolve_page_key(query_page)
+    else:
+        target_page_key = resolve_page_key(st.session_state.get("active_page_key", "patient"))
+
+    if target_page_key not in PAGES:
+        target_page_key = "patient"
+
+    # Sync query parameters for shareable Deep Links
+    st.query_params["page"] = target_page_key
+    st.session_state["active_page_key"] = target_page_key
+
+    # ── 2. Sidebar Brand Header & Clinic Name Customizer ──────────────────────
     with st.sidebar:
         st.markdown(
             f"""
-            <div style="background:linear-gradient(135deg,#0F766E 0%,#0D9488 100%); border-radius:14px; padding:16px 18px; color:white; margin-bottom:12px; box-shadow:0 4px 12px rgba(15,118,110,0.18);">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <div style="background:rgba(255,255,255,0.18); width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px;">🏥</div>
+            <div class="clinic-brand-card">
+                <div class="clinic-brand-header">
+                    <div class="clinic-brand-icon">🏥</div>
                     <div>
-                        <div style="font-size:1.02rem; font-weight:800; color:white; line-height:1.25;">{cname}</div>
-                        <div style="font-size:0.72rem; color:#CCFBF1; font-weight:500; margin-top:2px;">{DEFAULT_CLINIC_TAGLINE}</div>
+                        <div class="clinic-brand-title">{escaped_cname}</div>
+                        <div class="clinic-brand-tagline">{escaped_tagline}</div>
                     </div>
                 </div>
             </div>
@@ -106,84 +242,81 @@ def main() -> None:
         )
 
         with st.expander("⚙️ ตั้งค่าชื่อคลินิก (Clinic Brand)", expanded=False):
-            new_cname = st.text_input("ชื่อคลินิก / โรงพยาบาล:", value=cname, key="brand_editor_input")
-            if new_cname.strip() and new_cname.strip() != cname:
-                st.session_state["clinic_brand_name"] = new_cname.strip()
-                st.rerun()
+            with st.form("form_brand_update", clear_on_submit=False):
+                new_cname = st.text_input("ชื่อคลินิก / โรงพยาบาล:", value=cname)
+                submitted = st.form_submit_button("บันทึกชื่อคลินิก", use_container_width=True)
+                if submitted and new_cname.strip() and new_cname.strip() != cname:
+                    st.session_state["clinic_brand_name"] = new_cname.strip()
+                    st.toast("✅ บันทึกชื่อคลินิกเรียบร้อยแล้ว")
+                    st.rerun()
 
         st.divider()
 
-        # ── Navigation Router ──────────────────────────────────────────────────
-        if "pending_nav_section" in st.session_state:
-            st.session_state["active_nav_page"] = st.session_state.pop("pending_nav_section")
+        # ── 3. Role-Based Navigation Menu ─────────────────────────────────────
+        nav_display_options = [PAGES[k]["full_label"] for k in PAGE_ORDER]
+        current_display = PAGES[target_page_key]["full_label"]
+        current_idx = PAGE_ORDER.index(target_page_key)
 
-        nav_options = [
-            "📊 ภาพรวมผู้บริหาร",
-            "🎯 คัดกรองกลุ่มเป้าหมาย",
-            "👤 ข้อมูลผู้รับบริการรายคน",
-            "🩺 ติดตามโรคเรื้อรัง",
-        ]
-
-        # Key compatibility translation for unit tests & internal redirects
-        alias_map = {
-            "Executive Overview": nav_options[0],
-            "Executive Strategy Overview": nav_options[0],
-            "📊 ภาพรวมผู้บริหาร": nav_options[0],
-            ":material/insights: Executive Strategy Overview": nav_options[0],
-            "AI Lead Intelligence": nav_options[1],
-            "🎯 AI Lead Intelligence": nav_options[1],
-            "🎯 คัดกรองกลุ่มเป้าหมาย": nav_options[1],
-            ":material/my_location: AI Lead Intelligence": nav_options[1],
-            "Patient Insight Card": nav_options[2],
-            "👤 Patient Insight Card": nav_options[2],
-            "👤 ข้อมูลผู้รับบริการรายคน": nav_options[2],
-            ":material/search: Patient Insight Card": nav_options[2],
-            "Clinical Command Center": nav_options[3],
-            "🩺 ติดตามโรคเรื้อรัง": nav_options[3],
-            ":material/vital_signs: Clinical Command Center": nav_options[3],
-        }
-
-        current_nav = st.session_state.get("active_nav_page", nav_options[2])
-        if current_nav in alias_map:
-            current_nav = alias_map[current_nav]
-        if current_nav not in nav_options:
-            current_nav = nav_options[2]
-
-        default_idx = nav_options.index(current_nav)
-        selected_page = st.radio(
+        chosen_label = st.radio(
             "📌 เมนูหลัก (Workflow Navigation):",
-            nav_options,
-            index=default_idx,
+            nav_display_options,
+            index=current_idx,
             key="main_navigation_radio",
         )
-        st.session_state["active_nav_page"] = selected_page
 
-        st.divider()
+        # Detect user navigation change
+        new_page_key = target_page_key
+        for k in PAGE_ORDER:
+            if PAGES[k]["full_label"] == chosen_label:
+                new_page_key = k
+                break
 
-        # ── Contextual Sidebar Filter Controls ────────────────────────────────
-        st.caption("🎛️ ตัวกรองเฉพาะหน้านี้ (Contextual Filters):")
-        
-        start_date_val = None
-        end_date_val = None
+        if new_page_key != target_page_key:
+            st.session_state["active_page_key"] = new_page_key
+            st.query_params["page"] = new_page_key
+            st.rerun()
 
-        if selected_page == nav_options[0]:
-            # Filters exclusively for Executive Overview
-            date_range = st.date_input(
-                "📅 ช่วงเวลาที่วิเคราะห์ยอดขาย:",
-                value=[datetime(2025, 1, 1), datetime(2026, 7, 31)],
-                key="exec_date_range",
+        # ── 4. Contextual Sidebar Filters (Only Rendered When Relevant) ───────
+        start_date_val: Optional[date] = None
+        end_date_val: Optional[date] = None
+
+        if target_page_key == "exec":
+            st.divider()
+            st.caption("🎛️ ตัวกรองข้อมูลผู้บริหาร (Executive Filters):")
+            preset_choice = st.selectbox(
+                "ช่วงเวลาที่วิเคราะห์ (Preset):",
+                ["ทั้งหมด (All)", "ปีนี้ (This Year)", "ไตรมาสนี้ (This Quarter)", "90 วันล่าสุด (Last 90 Days)", "30 วันล่าสุด (Last 30 Days)", "กำหนดเอง (Custom)"],
+                index=0,
+                key="exec_date_preset",
             )
-            if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
-                start_date_val, end_date_val = date_range[0], date_range[1]
+            if preset_choice == "กำหนดเอง (Custom)":
+                custom_range = st.date_input(
+                    "เลือกช่วงวันที่เริ่มต้น - สิ้นสุด:",
+                    value=(ANALYSIS_START, date.today()),
+                    key="exec_custom_date_range",
+                )
+                if isinstance(custom_range, (list, tuple)):
+                    if len(custom_range) == 2:
+                        start_date_val, end_date_val = custom_range[0], custom_range[1]
+                    elif len(custom_range) == 1:
+                        start_date_val = custom_range[0]
+                        st.caption("ℹ️ กรุณาเลือกวันสิ้นสุดช่วงเวลาในปฏิทิน")
+            else:
+                start_date_val, end_date_val = get_date_preset_range(preset_choice)
+
+            if start_date_val and end_date_val:
+                st.caption(f"📅 ช่วงข้อมูล: **{start_date_val.strftime('%d/%m/%Y')}** ถึง **{end_date_val.strftime('%d/%m/%Y')}**")
+
             st.selectbox(
                 "🏥 สาขาบริการ:",
                 ["ทุกสาขา (All Branches)", "สาขาหลัก (Main Clinic)", "สาขาในเมือง (Urban Clinic)"],
-                key="exec_branch_filter"
+                key="exec_branch_filter",
             )
 
-        elif selected_page == nav_options[1]:
-            # Filters exclusively for AI Lead Intelligence
-            lead_sb_score = st.slider(
+        elif target_page_key == "lead":
+            st.divider()
+            st.caption("🎛️ ตัวกรองการคัดกรอง (Lead Filters):")
+            st.slider(
                 "🎯 เกณฑ์คะแนนโอกาสซื้อ (%):",
                 min_value=0.0,
                 max_value=90.0,
@@ -191,42 +324,20 @@ def main() -> None:
                 step=5.0,
                 key="lead_sb_score",
             )
-            lead_sb_stage = st.selectbox(
+            st.selectbox(
                 "📋 กลุ่มสถานะผู้ป่วย (Journey Stage):",
                 ["ทั้งหมด (All Stages)", "Wellness / General OPD", "Chronic Care OPD", "Frequent Active OPD"],
                 key="lead_sb_stage",
             )
-            lead_sb_prio = st.selectbox(
+            st.selectbox(
                 "🔥 ระดับความเร่งด่วน:",
                 ["ทั้งหมด (All Priorities)", "🔥 High Priority (≥60%)", "⚡ Medium Priority (40-59%)", "🌱 Regular (<40%)"],
                 key="lead_sb_prio",
             )
 
-        elif selected_page == nav_options[2]:
-            # Quick Jump controls exclusively for Patient Insight Card
-            st.caption("🔍 เลือกเคสผู้รับบริการอย่างรวดเร็ว:")
-            snap_df_quick, _, _ = load_synthetic_dataset()
-            p_list = snap_df_quick["patient_id"].astype(str).tolist() if not snap_df_quick.empty else ["605", "6", "1", "25"]
-            p_labels = {
-                "605": "ID 605: ไทรอยด์+โลหิตจาง",
-                "6": "ID 6: โรคไต+ตับ (Bespoke)",
-                "1": "ID 1: ความดัน+เมตาบอลิก",
-                "25": "ID 25: สุขภาพทั่วไป (Routine)",
-            }
-            cur_p = str(st.session_state.get("search_patient_id", "605"))
-            cur_p_idx = p_list.index(cur_p) if cur_p in p_list else 0
-            quick_sel = st.selectbox(
-                "รายชื่อผู้รับบริการในระบบ:",
-                p_list,
-                index=cur_p_idx,
-                format_func=lambda x: p_labels.get(x, f"HN68{int(x):05d}" if x.isdigit() else f"Patient {x}"),
-                key="patient_sb_quick_sel",
-            )
-            if quick_sel != cur_p:
-                st.session_state["search_patient_id"] = quick_sel
-
-        elif selected_page == nav_options[3]:
-            # Filters exclusively for Clinical Command Center
+        elif target_page_key == "clinical":
+            st.divider()
+            st.caption("🎛️ ตัวกรองศูนย์โรคเรื้อรัง (Clinical Filters):")
             st.selectbox(
                 "🩺 กลุ่มโรคเรื้อรังหลัก:",
                 ["ทั้งหมด (All NCDs)", "🫀 ความดันโลหิตสูง (HT)", "🩸 เบาหวาน (DM)", "🧪 ไขมันในเลือดสูง (DLP)", "🫘 โรคไตเรื้อรัง (CKD)"],
@@ -238,31 +349,41 @@ def main() -> None:
                 key="clin_sb_tier",
             )
 
-    # ── Breadcrumb Header ──────────────────────────────────────────────────────
-    breadcrumb_map = {
-        nav_options[0]: "📊 ภาพรวมผู้บริหาร",
-        nav_options[1]: "🎯 คัดกรองกลุ่มเป้าหมาย (AI Lead Intelligence)",
-        nav_options[2]: "🔍 ค้นหาและดูแลผู้รับบริการรายคน",
-        nav_options[3]: "🩺 ศูนย์ติดตามโรคเรื้อรัง (Clinical Command Center)",
-    }
-    bc_clean = breadcrumb_map.get(selected_page, selected_page)
+        # ── 5. System Utilities (Clear Cache Button) ──────────────────────────
+        st.divider()
+        if st.button("🔄 รีเฟรชข้อมูล (Clear Cache)", use_container_width=True, help="ล้างข้อมูลแคชในหน่วยความจำและโหลดข้อมูลใหม่ล่าสุด"):
+            st.cache_data.clear()
+            st.toast("✅ ล้างข้อมูลแคชเรียบร้อยแล้ว กำลังโหลดข้อมูลใหม่...")
+            st.rerun()
+
+    # ── 6. Accessible Breadcrumb Navigation ────────────────────────────────────
+    active_page_meta = PAGES[target_page_key]
+    breadcrumb_label = html.escape(active_page_meta["breadcrumb"])
+
     st.markdown(
         f"""
-        <div class="breadcrumb-container">
-            <span>🏥 {cname}</span>
-            <span>&rsaquo;</span>
-            <span class="breadcrumb-active">{bc_clean}</span>
-        </div>
+        <nav class="app-breadcrumb" aria-label="breadcrumb">
+            <ol>
+                <li><span>🏥 {escaped_cname}</span></li>
+                <li><span>&rsaquo;</span></li>
+                <li class="breadcrumb-item-active" aria-current="page"><span>{breadcrumb_label}</span></li>
+            </ol>
+        </nav>
         """,
         unsafe_allow_html=True,
     )
 
-    # ── Lazy Data Loading & View Dispatching ───────────────────────────────────
-    if selected_page == nav_options[0] or "Executive" in selected_page or "ภาพรวมผู้บริหาร" in selected_page:
-        # Load sales and clinical overview data
-        sales_df = load_real_sales_data()
-        snap_df, enc_df, _ = load_synthetic_dataset()
-        view_exec.render_executive_overview_view(
+    # ── 7. Lazy Data Loading & View Dispatching ────────────────────────────────
+    if target_page_key == "exec":
+        from services.data_loader import load_real_sales_data, load_synthetic_dataset
+        with st.spinner("กำลังโหลดข้อมูลภาพรวมผู้บริหารและยอดขาย..."):
+            sales_df = load_real_sales_data()
+            snap_df, enc_df, _ = load_synthetic_dataset()
+        
+        mod = importlib.import_module("views.executive_overview")
+        run_with_error_boundary(
+            active_page_meta["title"],
+            mod.render_executive_overview_view,
             sales_df=sales_df,
             full_sales_df=sales_df,
             raw_clinical_df=enc_df,
@@ -270,45 +391,96 @@ def main() -> None:
             end_d=end_date_val,
         )
 
-    elif selected_page == nav_options[1] or "Lead" in selected_page or "คัดกรอง" in selected_page:
-        # Load encounter or clinical data for Lead Intelligence
-        snap_df, enc_df, _ = load_synthetic_dataset()
-        clin_base = enc_df if not enc_df.empty else snap_df
+    elif target_page_key == "lead":
+        from services.data_loader import load_synthetic_dataset
+        with st.spinner("กำลังประมวลผลโมเดล AI Lead Scoring & Precision Cross-Sell..."):
+            snap_df, enc_df, _ = load_synthetic_dataset()
+            clin_base = enc_df if not enc_df.empty else snap_df
+
         min_p = float(st.session_state.get("lead_sb_score", 40.0))
         stg_f = str(st.session_state.get("lead_sb_stage", "All"))
         prio_f = str(st.session_state.get("lead_sb_prio", "All"))
-        view_lead.render_lead_intelligence_view(
+
+        mod = importlib.import_module("views.lead_intelligence")
+        run_with_error_boundary(
+            active_page_meta["title"],
+            mod.render_lead_intelligence_view,
             raw_clinical_df=clin_base,
             min_propensity=min_p,
             journey_stage_filter=stg_f,
             priority_filter=prio_f,
         )
 
-    elif selected_page == nav_options[2] or "Patient" in selected_page or "ผู้รับบริการ" in selected_page:
-        # Load synthetic snapshot for patient cards
-        snap_df, enc_df, _ = load_synthetic_dataset()
-        summary_pts = snap_df.set_index("patient_id") if not snap_df.empty else pd.DataFrame()
-        view_patient.render_patient_card_view(
+    elif target_page_key == "patient":
+        from services.data_loader import load_synthetic_dataset
+        with st.spinner("กำลังโหลดแฟ้มประวัติสุขภาพผู้รับบริการ..."):
+            snap_df, enc_df, _ = load_synthetic_dataset()
+            summary_pts = snap_df.set_index("patient_id") if not snap_df.empty else pd.DataFrame()
+
+        mod = importlib.import_module("views.patient_card")
+        run_with_error_boundary(
+            active_page_meta["title"],
+            mod.render_patient_card_view,
             avail_df=snap_df,
             summary_pts=summary_pts,
             dv=enc_df,
         )
 
-    elif selected_page == nav_options[3] or "Clinical" in selected_page or "เรื้อรัง" in selected_page:
-        # Load clinical tracking data
-        snap_df, enc_df, _ = load_synthetic_dataset()
-        view_clin.render_clinical_tracking_view(
+    elif target_page_key == "clinical":
+        from services.data_loader import load_synthetic_dataset
+        with st.spinner("กำลังรวบรวมข้อมูลศูนย์ติดตามโรคเรื้อรัง (Clinical Command Center)..."):
+            snap_df, enc_df, _ = load_synthetic_dataset()
+
+        mod = importlib.import_module("views.clinical_tracking")
+        run_with_error_boundary(
+            active_page_meta["title"],
+            mod.render_clinical_tracking_view,
             dv=enc_df,
             raw_clinical_df=snap_df,
         )
 
 
 # ==============================================================================
-# Backward Compatibility Aliases (Preserving all existing Unit Test Contracts)
+# Backward Compatibility Wrappers (Zero-Regression Contract with Unit Tests)
 # ==============================================================================
-render_executive_system_overview = view_exec.render_executive_system_overview
-render_lead_scoring_xai_dashboard = view_lead.render_lead_scoring_xai_dashboard
-render_patient_profile = view_patient.render_patient_card_view
+def render_executive_system_overview(*args: Any, **kwargs: Any) -> Any:
+    mod = importlib.import_module("views.executive_overview")
+    return mod.render_executive_system_overview(*args, **kwargs)
+
+
+def render_lead_scoring_xai_dashboard(*args: Any, **kwargs: Any) -> Any:
+    mod = importlib.import_module("views.lead_intelligence")
+    return mod.render_lead_scoring_xai_dashboard(*args, **kwargs)
+
+
+def render_patient_profile(*args: Any, **kwargs: Any) -> Any:
+    mod = importlib.import_module("views.patient_card")
+    return mod.render_patient_card_view(*args, **kwargs)
+
+
+def __getattr__(name: str) -> Any:
+    """Lazy module-level attribute loader for zero-startup-penalty backwards compatibility."""
+    if name == "view_lead":
+        return importlib.import_module("views.lead_intelligence")
+    elif name == "view_patient":
+        return importlib.import_module("views.patient_card")
+    elif name == "view_exec":
+        return importlib.import_module("views.executive_overview")
+    elif name == "view_clin":
+        return importlib.import_module("views.clinical_tracking")
+    elif name == "get_xgboost_model":
+        from services.ml_engine import get_xgboost_model
+        return get_xgboost_model
+    elif name == "get_cached_shap_explainer":
+        from services.ml_engine import get_cached_shap_explainer
+        return get_cached_shap_explainer
+    elif name == "predict_patient_propensity":
+        from services.ml_engine import predict_patient_propensity
+        return predict_patient_propensity
+    elif name == "resolve_patient_lab_snapshot":
+        from services.data_loader import resolve_patient_lab_snapshot
+        return resolve_patient_lab_snapshot
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 if __name__ == "__main__":
