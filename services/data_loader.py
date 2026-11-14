@@ -98,6 +98,28 @@ def load_synthetic_dataset() -> Tuple[pd.DataFrame, pd.DataFrame, Dict[str, Any]
     if os.path.exists(snap_path) and os.path.exists(enc_path):
         snap_df = pd.read_parquet(snap_path)
         enc_df = pd.read_parquet(enc_path)
+
+        # ⚡ Synchronize patient snapshot vitals with latest encounter metrics
+        # Ensures Patient Insight Card and AI Lead Intelligence share the exact same ground truth
+        if not enc_df.empty and "patient_id" in enc_df.columns:
+            latest_enc = enc_df.sort_values("visit_date", ascending=False).groupby("patient_id").first().reset_index()
+            visit_counts = enc_df.groupby("patient_id").size().rename("total_visits_history")
+            latest_enc = latest_enc.merge(visit_counts, on="patient_id")
+
+            p_map = latest_enc.set_index("patient_id")
+            if "age_at_visit" in p_map.columns:
+                snap_df["age"] = snap_df["patient_id"].map(p_map["age_at_visit"]).fillna(snap_df["age"])
+            if "sbp" in p_map.columns:
+                snap_df["sbp"] = snap_df["patient_id"].map(p_map["sbp"]).fillna(snap_df["sbp"])
+            if "dbp" in p_map.columns:
+                snap_df["dbp"] = snap_df["patient_id"].map(p_map["dbp"]).fillna(snap_df["dbp"])
+            if "bmi" in p_map.columns:
+                snap_df["bmi"] = snap_df["patient_id"].map(p_map["bmi"]).fillna(snap_df["bmi"])
+            if "total_visits_history" in p_map.columns:
+                v_series = snap_df["patient_id"].map(p_map["total_visits_history"])
+                snap_df["prior_visits_12m"] = v_series.fillna(snap_df.get("prior_visits_12m", 1))
+                snap_df["visits_last_2y"] = v_series.fillna(snap_df.get("visits_last_2y", 1))
+
         meta = {
             "total_patients": len(snap_df),
             "total_encounters": len(enc_df),
@@ -243,14 +265,14 @@ def resolve_patient_lab_snapshot(
         res = dict(matched_row)
         res["patient_id"] = str(matched_row.get("patient_id", clean_term))
         res["hn"] = str(matched_row.get("hn", f"HN68{int(res['patient_id']):05d}" if res["patient_id"].isdigit() else f"HN-{res['patient_id']}"))
-        res["age"] = float(matched_row.get("age", age_val))
+        res["age"] = float(age_val if age_val is not None else matched_row.get("age", 48.0))
         g_raw = str(matched_row.get("gender", ""))
         g_code_raw = float(matched_row.get("gender_code", gender_code))
         res["gender"] = "หญิง" if (g_raw in ["หญิง", "female", "F"] or g_code_raw > 0.5) else "ชาย"
-        res["bmi"] = float(matched_row.get("bmi", bmi_val))
-        res["systolic_bp"] = float(matched_row.get("sbp", matched_row.get("systolic_bp", matched_row.get("systolic", sys_val))))
-        res["diastolic_bp"] = float(matched_row.get("dbp", matched_row.get("diastolic_bp", matched_row.get("diastolic", dia_bp_val))))
-        res["visits_last_2y"] = int(matched_row.get("visits_last_2y", matched_row.get("prior_visits_12m", matched_row.get("prior_opd_visits_total", visits_val))))
+        res["bmi"] = float(bmi_val if bmi_val is not None else matched_row.get("bmi", 22.5))
+        res["systolic_bp"] = float(sys_val if sys_val is not None else matched_row.get("sbp", 120.0))
+        res["diastolic_bp"] = float(dia_bp_val if dia_bp_val is not None else matched_row.get("dbp", 80.0))
+        res["visits_last_2y"] = int(visits_val if visits_val is not None else matched_row.get("visits_last_2y", 1))
         
         # Comprehensive Lab Biomarkers (map parquet column names to UI keys)
         res["fpg_mg_dl"] = float(matched_row.get("fpg_mg_dl", matched_row.get("fbs", 95.0)))

@@ -189,7 +189,7 @@ def render_patient_card_view(
             st.rerun()
 
     st.caption("⚡ เคสตัวอย่างสำหรับทดสอบระบบ (Quick Clinical Scenarios):")
-    q_c1, q_c2, q_c3, q_c4 = st.columns(4)
+    q_c1, q_c2, q_c3, q_c4, q_c5 = st.columns(5)
     with q_c1:
         st.button("🧪 ID 6: ไต+ตับ (Bespoke)", key="btn_q_6", on_click=_select_scenario, args=("6",), use_container_width=True)
     with q_c2:
@@ -198,6 +198,8 @@ def render_patient_card_view(
         st.button("🫀 ID 1: ความดัน/เมตาบอลิก", key="btn_q_1", on_click=_select_scenario, args=("1",), use_container_width=True)
     with q_c4:
         st.button("🌱 ID 25: สุขภาพทั่วไป (Routine)", key="btn_q_25", on_click=_select_scenario, args=("25",), use_container_width=True)
+    with q_c5:
+        st.button("🔥 ID 5690: ไขมันสูง (Lead Top)", key="btn_q_5690", on_click=_select_scenario, args=("5690",), use_container_width=True)
 
     sel_pid_str = str(st.session_state.get("search_patient_id", target_pid)).strip()
 
@@ -397,6 +399,19 @@ def render_patient_card_view(
         </div>
         """
     )
+
+    # ── Linked Navigation Pill to AI Lead Intelligence ──
+    h_col1, h_col2 = st.columns([3.2, 1.3])
+    with h_col1:
+        st.caption(f"🔗 **ฐานข้อมูลเวชระเบียนแบบรวมศูนย์:** ข้อมูลเชื่อมโยงกับ AI Lead Intelligence อัตโนมัติ (Customer ID: `{sel_pid_str}`)")
+    with h_col2:
+        if st.button("🎯 ดูการวิเคราะห์ใน AI Lead Intelligence", key=f"btn_jump_to_lead_{sel_pid_str}", use_container_width=True):
+            st.session_state["selected_lead_cid"] = str(sel_pid_str)
+            st.session_state["search_patient_id"] = str(sel_pid_str)
+            st.session_state["active_page_key"] = "lead"
+            st.session_state["last_synced_page"] = "lead"
+            st.query_params["page"] = "lead"
+            st.rerun()
 
     # ── 6. Three Workflow Tabs (Progressive Disclosure) ────────────────────────
     pic_tabs = st.tabs([

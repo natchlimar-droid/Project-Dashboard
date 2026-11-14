@@ -2517,8 +2517,11 @@ def render_lead_scoring_xai_dashboard(raw_clinical_df=None, prophet_model=None, 
         st.caption("สำรวจตัวชี้วัดสุขภาพเฉพาะรายผ่าน SHAP Waterfall Plot พร้อมระบบจับคู่แพ็กเกจมาตรฐาน หรือจัดชุดแพ็กเกจเฉพาะบุคคล (Tailor-Made Package) อัตโนมัติ")
 
         avail_cids = lead_table['Customer ID'].tolist()
+        preferred_cid = str(st.session_state.get("selected_lead_cid") or st.session_state.get("search_patient_id") or "").strip()
         default_idx = 0
-        if not lead_table.empty:
+        if preferred_cid and preferred_cid in avail_cids:
+            default_idx = avail_cids.index(preferred_cid)
+        elif not lead_table.empty:
             top_cid = lead_table.iloc[0]['Customer ID']
             if top_cid in avail_cids:
                 default_idx = avail_cids.index(top_cid)
