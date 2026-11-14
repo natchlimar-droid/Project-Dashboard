@@ -180,7 +180,7 @@ def render_patient_card_view(
         is_dlp=_is_dlp,
     )
 
-    v2_res = predict_patient_packages_v2(lab_snap, top_k=3)
+    v2_res = predict_patient_packages_v2(lab_snap)
     primary_pkg_name = v2_res.get("primary_short_name", "Essential")
     top3_packages = v2_res.get("top3_packages", [])
     pers_pkg = v2_res.get("personalized_package", {})
@@ -311,9 +311,9 @@ def render_patient_card_view(
 
         # Standard Package
         top_std = top3_packages[0] if top3_packages else {}
-        std_name = top_std.get("name", "แพ็กเกจมาตรฐาน")
+        std_name = top_std.get("name") or top_std.get("short_name", "แพ็กเกจมาตรฐาน")
         std_price = int(top_std.get("price", 3500))
-        std_fit = float(top_std.get("fit_pct", 75.0))
+        std_fit = float(top_std.get("ml_score_pct", top_std.get("fit_pct", 75.0)))
         std_cov = pers_pkg.get("std_coverage_pct", 65)
 
         with comp_col1:
