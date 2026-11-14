@@ -118,32 +118,40 @@ def main() -> None:
             st.session_state["active_nav_page"] = st.session_state.pop("pending_nav_section")
 
         nav_options = [
-            ":material/my_location: AI Lead Intelligence",
-            ":material/search: Patient Insight Card",
-            ":material/insights: Executive Strategy Overview",
-            ":material/vital_signs: Clinical Command Center",
+            "📊 ภาพรวมผู้บริหาร",
+            "🎯 คัดกรองกลุ่มเป้าหมาย",
+            "👤 ข้อมูลผู้รับบริการรายคน",
+            "🩺 ติดตามโรคเรื้อรัง",
         ]
 
-        # Key compatibility translation
+        # Key compatibility translation for unit tests & internal redirects
         alias_map = {
-            "AI Lead Intelligence": nav_options[0],
-            "🎯 AI Lead Intelligence": nav_options[0],
-            "Patient Insight Card": nav_options[1],
-            "👤 Patient Insight Card": nav_options[1],
-            "Executive Overview": nav_options[2],
-            "Executive Strategy Overview": nav_options[2],
+            "Executive Overview": nav_options[0],
+            "Executive Strategy Overview": nav_options[0],
+            "📊 ภาพรวมผู้บริหาร": nav_options[0],
+            ":material/insights: Executive Strategy Overview": nav_options[0],
+            "AI Lead Intelligence": nav_options[1],
+            "🎯 AI Lead Intelligence": nav_options[1],
+            "🎯 คัดกรองกลุ่มเป้าหมาย": nav_options[1],
+            ":material/my_location: AI Lead Intelligence": nav_options[1],
+            "Patient Insight Card": nav_options[2],
+            "👤 Patient Insight Card": nav_options[2],
+            "👤 ข้อมูลผู้รับบริการรายคน": nav_options[2],
+            ":material/search: Patient Insight Card": nav_options[2],
             "Clinical Command Center": nav_options[3],
+            "🩺 ติดตามโรคเรื้อรัง": nav_options[3],
+            ":material/vital_signs: Clinical Command Center": nav_options[3],
         }
 
-        current_nav = st.session_state.get("active_nav_page", nav_options[0])
+        current_nav = st.session_state.get("active_nav_page", nav_options[2])
         if current_nav in alias_map:
             current_nav = alias_map[current_nav]
         if current_nav not in nav_options:
-            current_nav = nav_options[0]
+            current_nav = nav_options[2]
 
         default_idx = nav_options.index(current_nav)
         selected_page = st.radio(
-            "📌 ระบบและเมนูการทำงาน:",
+            "📌 เมนูหลัก (Workflow Navigation):",
             nav_options,
             index=default_idx,
             key="main_navigation_radio",
@@ -153,57 +161,104 @@ def main() -> None:
         st.divider()
 
         # ── Contextual Sidebar Filter Controls ────────────────────────────────
-        st.caption("⚙️ ตัวกรองเฉพาะหน้าการทำงาน:")
+        st.caption("🎛️ ตัวกรองเฉพาะหน้านี้ (Contextual Filters):")
         
-        # Filters for Executive Overview
         start_date_val = None
         end_date_val = None
-        if "Executive Strategy" in selected_page:
+
+        if selected_page == nav_options[0]:
+            # Filters exclusively for Executive Overview
             date_range = st.date_input(
-                "ช่วงเวลาที่วิเคราะห์ยอดขาย:",
+                "📅 ช่วงเวลาที่วิเคราะห์ยอดขาย:",
                 value=[datetime(2025, 1, 1), datetime(2026, 7, 31)],
                 key="exec_date_range",
             )
             if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
                 start_date_val, end_date_val = date_range[0], date_range[1]
-        elif "Lead Intelligence" in selected_page:
-            st.info("💡 ตัวกรองเกณฑ์คะแนนและ Journey Stage ถูกรวมไว้ที่แถบควบคุมด้านบนของหน้าจอหลัก")
-        elif "Patient Insight Card" in selected_page:
-            st.info("💡 สามารถค้นหาผู้ป่วยและเลือกเคสตัวอย่างได้โดยตรงจากแถบค้นหาด้านบน")
-        else:
-            st.info("💡 หน้าศูนย์ติดตามโรคเรื้อรังแสดงข้อมูลภาพรวมตามคลินิกเฉพาะทาง")
+            st.selectbox(
+                "🏥 สาขาบริการ:",
+                ["ทุกสาขา (All Branches)", "สาขาหลัก (Main Clinic)", "สาขาในเมือง (Urban Clinic)"],
+                key="exec_branch_filter"
+            )
+
+        elif selected_page == nav_options[1]:
+            # Filters exclusively for AI Lead Intelligence
+            lead_sb_score = st.slider(
+                "🎯 เกณฑ์คะแนนโอกาสซื้อ (%):",
+                min_value=0.0,
+                max_value=90.0,
+                value=40.0,
+                step=5.0,
+                key="lead_sb_score",
+            )
+            lead_sb_stage = st.selectbox(
+                "📋 กลุ่มสถานะผู้ป่วย (Journey Stage):",
+                ["ทั้งหมด (All Stages)", "Wellness / General OPD", "Chronic Care OPD", "Frequent Active OPD"],
+                key="lead_sb_stage",
+            )
+            lead_sb_prio = st.selectbox(
+                "🔥 ระดับความเร่งด่วน:",
+                ["ทั้งหมด (All Priorities)", "🔥 High Priority (≥60%)", "⚡ Medium Priority (40-59%)", "🌱 Regular (<40%)"],
+                key="lead_sb_prio",
+            )
+
+        elif selected_page == nav_options[2]:
+            # Quick Jump controls exclusively for Patient Insight Card
+            st.caption("🔍 เลือกเคสผู้รับบริการอย่างรวดเร็ว:")
+            snap_df_quick, _, _ = load_synthetic_dataset()
+            p_list = snap_df_quick["patient_id"].astype(str).tolist() if not snap_df_quick.empty else ["605", "6", "1", "25"]
+            p_labels = {
+                "605": "ID 605: ไทรอยด์+โลหิตจาง",
+                "6": "ID 6: โรคไต+ตับ (Bespoke)",
+                "1": "ID 1: ความดัน+เมตาบอลิก",
+                "25": "ID 25: สุขภาพทั่วไป (Routine)",
+            }
+            cur_p = str(st.session_state.get("search_patient_id", "605"))
+            cur_p_idx = p_list.index(cur_p) if cur_p in p_list else 0
+            quick_sel = st.selectbox(
+                "รายชื่อผู้รับบริการในระบบ:",
+                p_list,
+                index=cur_p_idx,
+                format_func=lambda x: p_labels.get(x, f"HN68{int(x):05d}" if x.isdigit() else f"Patient {x}"),
+                key="patient_sb_quick_sel",
+            )
+            if quick_sel != cur_p:
+                st.session_state["search_patient_id"] = quick_sel
+
+        elif selected_page == nav_options[3]:
+            # Filters exclusively for Clinical Command Center
+            st.selectbox(
+                "🩺 กลุ่มโรคเรื้อรังหลัก:",
+                ["ทั้งหมด (All NCDs)", "🫀 ความดันโลหิตสูง (HT)", "🩸 เบาหวาน (DM)", "🧪 ไขมันในเลือดสูง (DLP)", "🫘 โรคไตเรื้อรัง (CKD)"],
+                key="clin_sb_disease",
+            )
+            st.selectbox(
+                "🛡️ ระดับความเสี่ยงประชากร:",
+                ["ทุกระดับความเสี่ยง", "Tier 4: วิกฤต/ต้องดูแลใกล้ชิด", "Tier 3: กลุ่มเสี่ยงสูง", "Tier 2: กลุ่มเฝ้าระวัง", "Tier 1: กลุ่มสุขภาพดี"],
+                key="clin_sb_tier",
+            )
 
     # ── Breadcrumb Header ──────────────────────────────────────────────────────
-    page_clean_title = selected_page.split(":", 2)[-1].strip() if ":" in selected_page else selected_page
+    breadcrumb_map = {
+        nav_options[0]: "📊 ภาพรวมผู้บริหาร",
+        nav_options[1]: "🎯 คัดกรองกลุ่มเป้าหมาย (AI Lead Intelligence)",
+        nav_options[2]: "🔍 ค้นหาและดูแลผู้รับบริการรายคน",
+        nav_options[3]: "🩺 ศูนย์ติดตามโรคเรื้อรัง (Clinical Command Center)",
+    }
+    bc_clean = breadcrumb_map.get(selected_page, selected_page)
     st.markdown(
         f"""
         <div class="breadcrumb-container">
             <span>🏥 {cname}</span>
             <span>&rsaquo;</span>
-            <span class="breadcrumb-active">{page_clean_title}</span>
+            <span class="breadcrumb-active">{bc_clean}</span>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
     # ── Lazy Data Loading & View Dispatching ───────────────────────────────────
-    if "Lead Intelligence" in selected_page:
-        # Only load encounter or clinical data for Lead Intelligence
-        snap_df, enc_df, _ = load_synthetic_dataset()
-        clin_base = enc_df if not enc_df.empty else snap_df
-        view_lead.render_lead_intelligence_view(raw_clinical_df=clin_base)
-
-    elif "Patient Insight Card" in selected_page:
-        # Load synthetic snapshot for patient cards
-        snap_df, enc_df, _ = load_synthetic_dataset()
-        summary_pts = snap_df.set_index("patient_id") if not snap_df.empty else pd.DataFrame()
-        view_patient.render_patient_card_view(
-            avail_df=snap_df,
-            summary_pts=summary_pts,
-            dv=enc_df,
-        )
-
-    elif "Executive Strategy" in selected_page:
+    if selected_page == nav_options[0] or "Executive" in selected_page or "ภาพรวมผู้บริหาร" in selected_page:
         # Load sales and clinical overview data
         sales_df = load_real_sales_data()
         snap_df, enc_df, _ = load_synthetic_dataset()
@@ -215,7 +270,31 @@ def main() -> None:
             end_d=end_date_val,
         )
 
-    elif "Clinical Command Center" in selected_page:
+    elif selected_page == nav_options[1] or "Lead" in selected_page or "คัดกรอง" in selected_page:
+        # Load encounter or clinical data for Lead Intelligence
+        snap_df, enc_df, _ = load_synthetic_dataset()
+        clin_base = enc_df if not enc_df.empty else snap_df
+        min_p = float(st.session_state.get("lead_sb_score", 40.0))
+        stg_f = str(st.session_state.get("lead_sb_stage", "All"))
+        prio_f = str(st.session_state.get("lead_sb_prio", "All"))
+        view_lead.render_lead_intelligence_view(
+            raw_clinical_df=clin_base,
+            min_propensity=min_p,
+            journey_stage_filter=stg_f,
+            priority_filter=prio_f,
+        )
+
+    elif selected_page == nav_options[2] or "Patient" in selected_page or "ผู้รับบริการ" in selected_page:
+        # Load synthetic snapshot for patient cards
+        snap_df, enc_df, _ = load_synthetic_dataset()
+        summary_pts = snap_df.set_index("patient_id") if not snap_df.empty else pd.DataFrame()
+        view_patient.render_patient_card_view(
+            avail_df=snap_df,
+            summary_pts=summary_pts,
+            dv=enc_df,
+        )
+
+    elif selected_page == nav_options[3] or "Clinical" in selected_page or "เรื้อรัง" in selected_page:
         # Load clinical tracking data
         snap_df, enc_df, _ = load_synthetic_dataset()
         view_clin.render_clinical_tracking_view(

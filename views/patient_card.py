@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*-
 """
 View 2: Patient Insight Card & Modular Custom Package Builder.
-Displays individualized patient vitals, 26 standardized lab biomarkers,
-AI multi-task package recommendations, modular tailor-made package composer,
-and clinical outreach talk tracks.
+Role-Based & Progressive Disclosure design:
+- 5-Second glanceable Patient Hero Banner
+- 3 Clear Workflow Tabs:
+  1. 📦 แนะนำแพ็กเกจ & จัดทำใบเสนอราคา (Package Recommendation & Quotation Summary)
+  2. 🧪 ผลแล็บ & ประวัติสุขภาพ (Health Profile & Labs)
+  3. 🤖 เหตุผล AI & บทสนทนานำเสนอ (AI Drivers & Outreach Talk Track)
 """
 from __future__ import annotations
 
 import re
 import textwrap
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -35,6 +39,91 @@ def render_html(html_str: str) -> None:
         st.markdown(dedented, unsafe_allow_html=True)
 
 
+@st.dialog("📋 รายละเอียดรายการตรวจในแพ็กเกจ")
+def show_package_details_dialog(pkg_name: str, pkg_price: int, bullets: List[str], reason: str = ""):
+    st.markdown(f"### {pkg_name}")
+    st.markdown(
+        f"**ราคาแพ็กเกจ:** <span style='font-size:1.35rem; font-weight:800; color:#0F766E;'>฿{pkg_price:,}</span>",
+        unsafe_allow_html=True,
+    )
+    if reason:
+        st.markdown(f"**ข้อบ่งชี้ทางการแพทย์:** {reason}")
+    st.markdown("---")
+    st.markdown("##### 🩺 รายการตรวจที่ครอบคลุมในโปรแกรม:")
+    if not bullets:
+        bullets = [
+            "การตรวจร่างกายทั่วไปโดยแพทย์เวชปฏิบัติ (Physical Examination)",
+            "การตรวจความสมบูรณ์ของเม็ดเลือด (Complete Blood Count - CBC)",
+            "การตรวจปัสสาวะสมบูรณ์แบบ (Urinalysis - UA)",
+            "ตรวจระดับน้ำตาลในเลือด (Fasting Blood Sugar)",
+            "ตรวจระดับไขมันในเลือดครบชุด (Lipid Profile)",
+        ]
+    for b in bullets:
+        st.markdown(f"- {b}")
+    st.caption("ℹ️ ทุกรายการตรวจดำเนินการโดยทีมแพทย์และบุคลากรทางการแพทย์ผู้เชี่ยวชาญ พร้อมรายงานผลผ่านระบบดิจิทัล")
+    if st.button("ปิดหน้าต่าง", use_container_width=True, key="btn_close_pkg_modal"):
+        st.rerun()
+
+
+@st.dialog("🧾 ใบเสนอราคาโปรแกรมตรวจสุขภาพ (Medical Quotation)")
+def show_quotation_print_dialog(
+    hn_display: str,
+    gender_str: str,
+    age_val: float,
+    primary_pkg_name: str,
+    primary_pkg_price: int,
+    selected_addons: List[Dict[str, Any]],
+    net_total: int,
+    discount_val: int,
+):
+    today_str = datetime.now().strftime("%d/%m/%Y")
+    addon_rows = "".join([
+        f"<tr style='border-bottom:1px solid #E2E8F0;'><td style='padding:8px 10px;'>+ {a['name']}</td><td style='text-align:right; padding:8px 10px;'>฿{a['price']:,}</td></tr>"
+        for a in selected_addons
+    ])
+    discount_row = f"<div style='font-size:0.88rem; color:#D97706; margin-bottom:4px;'>ส่วนลดชุดเหมาจ่าย (Bundle Discount): <b>-฿{discount_val:,}</b></div>" if discount_val > 0 else ""
+
+    render_html(
+        f"""
+        <div style="background:white; border:1px solid #CBD5E1; border-radius:12px; padding:22px; font-family:'Inter',sans-serif; color:#0F172A;">
+            <div style="text-align:center; border-bottom:2px solid #0F766E; padding-bottom:12px; margin-bottom:16px;">
+                <div style="font-size:1.35rem; font-weight:800; color:#0F766E;">🏥 PrimeCare Wellness Clinic</div>
+                <div style="font-size:0.85rem; color:#64748B; margin-top:2px;">ใบเสนอราคาโปรแกรมตรวจสุขภาพเฉพาะบุคคล (Personalized Healthcare Quotation)</div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.88rem; margin-bottom:14px; background:#F8FAFC; padding:10px 14px; border-radius:8px;">
+                <span><b>ผู้รับบริการ:</b> {hn_display} (เพศ {gender_str}, อายุ {age_val:.0f} ปี)</span>
+                <span><b>วันที่ออกเอกสาร:</b> {today_str}</span>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:0.88rem; margin-bottom:14px;">
+                <thead>
+                    <tr style="background:#F1F5F9; border-bottom:1.5px solid #CBD5E1;">
+                        <th style="text-align:left; padding:8px 10px;">รายการตรวจสุขภาพ</th>
+                        <th style="text-align:right; padding:8px 10px;">ราคา (บาท)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border-bottom:1px solid #E2E8F0;">
+                        <td style="padding:10px 8px;"><b>แพ็กเกจหลัก:</b> {primary_pkg_name}</td>
+                        <td style="text-align:right; padding:10px 8px; font-weight:700;">฿{primary_pkg_price:,}</td>
+                    </tr>
+                    {addon_rows}
+                </tbody>
+            </table>
+            <div style="border-top:2px solid #E2E8F0; padding-top:12px; text-align:right;">
+                {discount_row}
+                <div style="font-size:1.45rem; font-weight:800; color:#0F766E;">
+                    ยอดสุทธิที่ต้องชำระ: ฿{net_total:,}
+                </div>
+            </div>
+            <div style="margin-top:18px; font-size:0.75rem; color:#64748B; text-align:center; border-top:1px dashed #CBD5E1; padding-top:10px;">
+                ใบเสนอราคานี้มีอายุ 30 วันนับจากวันที่ออก • กรุณานัดหมายล่วงหน้าก่อนเข้ารับบริการ
+            </div>
+        </div>
+        """
+    )
+    st.info("💡 สามารถกดปุ่มพิมพ์ (Ctrl+P) หรือบันทึกภาพหน้าจอนี้เพื่อส่งต่อให้ผู้รับบริการหรือทีมขายได้ทันที")
+
+
 def render_patient_card_view(
     avail_df: Optional[pd.DataFrame] = None,
     summary_pts: Optional[pd.DataFrame] = None,
@@ -44,9 +133,9 @@ def render_patient_card_view(
 ) -> None:
     """
     Renders the Patient Insight Card with an organized 3-tab layout:
-    - Tab 1: ข้อมูลสุขภาพ & ผลตรวจ Lab (Health Profile & Labs)
-    - Tab 2: แพ็กเกจที่แนะนำ & ปรับแต่งเฉพาะบุคคล (Package Recommendation & Bespoke Modular)
-    - Tab 3: บทสนทนานำเสนอ & แผนปฏิบัติการ (Outreach Talk Track & Action Plan)
+    - Tab 1: 📦 แนะนำแพ็กเกจ & จัดทำใบเสนอราคา (Package Recommendation & Quotation Summary)
+    - Tab 2: 🧪 ผลแล็บ & ประวัติสุขภาพ (Health Profile & Labs)
+    - Tab 3: 🤖 เหตุผล AI & บทสนทนานำเสนอ (AI Drivers & Outreach Talk Track)
     """
     # ── 1. Resolve Active Patient ID ──────────────────────────────────────────
     snap_df, _, _ = load_synthetic_dataset()
@@ -59,76 +148,53 @@ def render_patient_card_view(
         target_pid = str(avail_df.iloc[0]["patient_id"]).strip()
 
     if not target_pid:
-        target_pid = "6"  # Default sample patient (Renal + Hepatic)
+        target_pid = "605"  # Default sample patient (Thyroid + Anemia + Metabolic)
 
-    # ── 2. Top Header & Patient Selector ──────────────────────────────────────
-    render_html(
-        """
-        <div style="background:linear-gradient(135deg,#0F766E 0%,#0D9488 100%); border-radius:14px; padding:20px 24px; color:white; margin-bottom:16px; box-shadow:0 4px 14px rgba(15,118,110,0.14);">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                <div>
-                    <div style="font-size:0.75rem; font-weight:700; color:#CCFBF1; text-transform:uppercase; letter-spacing:0.06em;">
-                        👤 Patient Insight Card & Bespoke Precision Care
-                    </div>
-                    <div style="font-size:1.55rem; font-weight:800; color:white; margin-top:2px;">
-                        แฟ้มประวัติสุขภาพและการจัดชุดตรวจเฉพาะบุคคล
-                    </div>
-                </div>
-            </div>
-        </div>
-        """
-    )
-
-    # ── Quick-Pick Sample Buttons ─────────────────────────────────────────────
-    st.caption("⚡ เคสตัวอย่างสำหรับทดสอบระบบ (Quick-Pick Clinical Scenarios):")
-    btn_col1, btn_col2, btn_col3, btn_col4 = st.columns(4)
-    with btn_col1:
-        if st.button("🧪 ID 6: ไตเสื่อม+ตับ (จัดเฉพาะบุคคล)", key="btn_qpick_6", use_container_width=True):
-            st.session_state["search_patient_id"] = "6"
-            target_pid = "6"
-            st.rerun()
-    with btn_col2:
-        if st.button("🦋 ID 605: ไทรอยด์+โลหิตจาง (จัดเฉพาะบุคคล)", key="btn_qpick_605", use_container_width=True):
-            st.session_state["search_patient_id"] = "605"
-            target_pid = "605"
-            st.rerun()
-    with btn_col3:
-        if st.button("🫀 ID 1: เมตาบอลิก/ความดัน", key="btn_qpick_1", use_container_width=True):
-            st.session_state["search_patient_id"] = "1"
-            target_pid = "1"
-            st.rerun()
-    with btn_col4:
-        if st.button("🌱 ID 25: สุขภาพทั่วไป (Routine)", key="btn_qpick_25", use_container_width=True):
-            st.session_state["search_patient_id"] = "25"
-            target_pid = "25"
-            st.rerun()
-
-    # Search Bar
-    search_col1, search_col2 = st.columns([3, 1])
+    # ── 2. Top Search & Quick Case Selector ───────────────────────────────────
+    search_col1, search_col2 = st.columns([3.5, 1.0])
     with search_col1:
         entered_pid = st.text_input(
-            "🔍 ค้นหาด้วย Patient ID หรือ รหัส HN (เช่น 6, 605, HN6800006):",
+            "🔍 ค้นหารหัส HN / ชื่อผู้ป่วย (เช่น 605, 6, 1, 25, HN6800605):",
             value=target_pid,
             key="pic_search_input",
+            placeholder="พิมพ์รหัส HN หรือ Patient ID...",
         )
     with search_col2:
         st.write("")
         st.write("")
-        if st.button("ค้นหา", key="btn_search_pid", type="primary", use_container_width=True):
+        if st.button("🔍 ค้นหา", key="btn_search_pid", type="primary", use_container_width=True):
             target_pid = entered_pid.strip()
             st.session_state["search_patient_id"] = target_pid
+            st.rerun()
+
+    st.caption("⚡ เคสตัวอย่างสำหรับทดสอบระบบ (Quick Clinical Scenarios):")
+    q_c1, q_c2, q_c3, q_c4 = st.columns(4)
+    with q_c1:
+        if st.button("🧪 ID 6: ไต+ตับ (Bespoke)", key="btn_q_6", use_container_width=True):
+            st.session_state["search_patient_id"] = "6"
+            st.rerun()
+    with q_c2:
+        if st.button("🦋 ID 605: ไทรอยด์+โลหิตจาง", key="btn_q_605", use_container_width=True):
+            st.session_state["search_patient_id"] = "605"
+            st.rerun()
+    with q_c3:
+        if st.button("🫀 ID 1: ความดัน/เมตาบอลิก", key="btn_q_1", use_container_width=True):
+            st.session_state["search_patient_id"] = "1"
+            st.rerun()
+    with q_c4:
+        if st.button("🌱 ID 25: สุขภาพทั่วไป (Routine)", key="btn_q_25", use_container_width=True):
+            st.session_state["search_patient_id"] = "25"
             st.rerun()
 
     sel_pid_str = target_pid.strip()
 
     # ── 3. Resolve Patient Data & Vitals ───────────────────────────────────────
-    # Clinical parameters default
-    age_val = 35.0
-    sys_val = 120.0
-    dia_bp_val = 80.0
-    bmi_val = 22.0
-    visits_val = 1.0
-    gender_code = 0.5
+    age_val = 48.0
+    sys_val = 142.0
+    dia_bp_val = 88.0
+    bmi_val = 26.4
+    visits_val = 4.0
+    gender_code = 1.0  # Default female for 605
 
     # Check summary_pts or dv if available
     if summary_pts is not None and not summary_pts.empty:
@@ -190,55 +256,300 @@ def render_patient_card_view(
     )
 
     v2_res = predict_patient_packages_v2(lab_snap)
-    primary_pkg_name = v2_res.get("primary_short_name", "Essential")
     top3_packages = v2_res.get("top3_packages", [])
     pers_pkg = v2_res.get("personalized_package", {})
     needs_custom = bool(v2_res.get("needs_custom_package", False))
+    risk_reasons = v2_res.get("risk_reasons", [])
 
-    # Priority Badging
-    prio_color = "#10B981" if propensity_score >= 60 else ("#D97706" if propensity_score >= 40 else "#64748B")
-    prio_badge = "🔥 High Priority (แนะนำโทรทันที)" if propensity_score >= 60 else ("⚡ Medium Priority" if propensity_score >= 40 else "🌱 Regular Care")
+    # Risk Tier & Priority Badging
+    risk_tier = int(v2_res.get("risk_tier", 2))
+    tier_map = {
+        1: ("🟢 สุขภาพดี", "#15803D", "#F0FDF4"),
+        2: ("🟡 เฝ้าระวังความเสี่ยง", "#D97706", "#FFFBEB"),
+        3: ("🟠 เริ่มมีโรคเรื้อรัง", "#EA580C", "#FFF7ED"),
+        4: ("🔴 วิกฤต/ต้องดูแลใกล้ชิด", "#DC2626", "#FEF2F2"),
+    }
+    tier_label, tier_color, tier_bg = tier_map.get(risk_tier, ("🟡 เฝ้าระวัง", "#D97706", "#FFFBEB"))
 
-    # ── 5. Compact Hero Ribbon ────────────────────────────────────────────────
+    prio_color = "#0F766E" if propensity_score >= 60 else ("#D97706" if propensity_score >= 40 else "#64748B")
+    prio_badge = "🔥 แนะนำติดต่อด่วน (High Priority)" if propensity_score >= 60 else ("⚡ เฝ้าระวังต่อเนื่อง (Medium)" if propensity_score >= 40 else "🌱 ติดตามตามรอบปกติ")
+
+    pref_clinic = "คลินิกอายุรกรรมทั่วไป"
+    if _is_ht or sys_val >= 140:
+        pref_clinic = "คลินิกความดันโลหิตและหัวใจ"
+    elif float(lab_snap.get("egfr", 90)) < 60:
+        pref_clinic = "คลินิกโรคไตเรื้อรัง"
+    elif float(lab_snap.get("tsh_miu_l", 2.0)) > 4.5:
+        pref_clinic = "คลินิกต่อมไร้ท่อและไทรอยด์"
+
+    # ── 5. Patient Hero Banner (5-Second Glanceable Summary) ───────────────────
     hn_display = lab_snap.get("hn", f"HN68{int(sel_pid_str):05d}" if sel_pid_str.isdigit() else f"HN-{sel_pid_str}")
+
     render_html(
         f"""
         <div style="background:white; border:1px solid #E2E8F0; border-radius:14px; padding:16px 20px; margin-bottom:18px; box-shadow:0 2px 8px rgba(15,23,42,0.03); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-            <div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="font-size:1.4rem; font-weight:800; color:#0F172A;">{hn_display}</span>
-                    <span style="font-size:0.8rem; background:#F1F5F9; color:#475569; padding:2px 8px; border-radius:6px; font-weight:600;">Patient ID: {sel_pid_str}</span>
+            <div style="display:flex; align-items:center; gap:14px;">
+                <div style="width:48px; height:48px; border-radius:12px; background:#F1F5F9; display:flex; align-items:center; justify-content:center; font-size:1.6rem;">
+                    {'👨' if gender_str == 'ชาย' else '👩'}
                 </div>
-                <div style="font-size:0.85rem; color:#64748B; margin-top:3px;">
-                    เพศ: <b>{gender_str}</b> · อายุ: <b>{age_val:.0f} ปี</b> · BMI: <b>{bmi_val:.1f}</b> · ความดัน: <b>{sys_val:.0f}/{dia_bp_val:.0f} mmHg</b>
+                <div>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span style="font-size:1.35rem; font-weight:800; color:#0F172A;">{hn_display}</span>
+                        <span style="font-size:0.85rem; color:#475569; font-weight:600;">| {gender_str} {age_val:.0f} ปี</span>
+                        <span style="background:{tier_bg}; color:{tier_color}; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:6px; border:1px solid {tier_color}35;">
+                            {tier_label}
+                        </span>
+                        <span style="background:{prio_color}15; color:{prio_color}; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:6px; border:1px solid {prio_color}35;">
+                            {prio_badge}
+                        </span>
+                    </div>
+                    <div style="font-size:0.85rem; color:#64748B; margin-top:4px;">
+                        ความดัน <b>{sys_val:.0f}/{dia_bp_val:.0f} mmHg</b> • BMI <b>{bmi_val:.1f}</b> • มารับบริการ <b>{visits_val:.0f} ครั้ง/ปี</b> • คลินิกประจำ: <b>{pref_clinic}</b>
+                    </div>
                 </div>
             </div>
             <div style="display:flex; align-items:center; gap:16px;">
                 <div style="text-align:right;">
                     <div style="font-size:0.75rem; color:#64748B; font-weight:600;">โอกาสตอบรับแพ็กเกจสุขภาพ</div>
-                    <div style="font-size:1.65rem; font-weight:800; color:{prio_color}; line-height:1.1;">{propensity_score:.1f}%</div>
+                    <div style="font-size:1.75rem; font-weight:800; color:{prio_color}; line-height:1.1;">{propensity_score:.1f}%</div>
                 </div>
-                <span style="background:{prio_color}18; color:{prio_color}; border:1px solid {prio_color}35; font-size:0.8rem; font-weight:700; padding:6px 14px; border-radius:999px;">
-                    {prio_badge}
-                </span>
             </div>
         </div>
         """
     )
 
-    # ── 6. Three Clean Horizontal Tabs ────────────────────────────────────────
+    # ── 6. Three Workflow Tabs (Progressive Disclosure) ────────────────────────
     pic_tabs = st.tabs([
-        "📋 1. ข้อมูลสุขภาพ & ผลตรวจ Lab (Health Profile & Labs)",
-        "📦 2. แพ็กเกจที่แนะนำ & ปรับแต่งเฉพาะบุคคล (Package Recommendation & Bespoke Modular)",
-        "🗣️ 3. บทสนทนานำเสนอ & แผนปฏิบัติการ (Outreach Talk Track & Action Plan)",
+        "📦 1. แนะนำแพ็กเกจ (Package Recommendation)",
+        "🧪 2. ผลแล็บ & ประวัติ (Health Profile & Labs)",
+        "🤖 3. เหตุผล AI & บทสนทนา (AI Drivers & Outreach)",
     ])
 
     # ==========================================================================
-    # TAB 1: ข้อมูลสุขภาพ & ผลตรวจ Lab
+    # TAB 1: 📦 แนะนำแพ็กเกจ & จัดทำใบเสนอราคา
     # ==========================================================================
     with pic_tabs[0]:
-        st.markdown("#### 🩺 สัญญาณชีพและผลการตรวจทางคลินิก (Clinical Biomarkers)")
-        st.caption("รวบรวมตัวชี้วัดทางสรีรวิทยาและผลตรวจทางห้องปฏิบัติการ เพื่อประเมินความเสี่ยงระดับอวัยวะ")
+        st.markdown("#### 📦 ระบบจับคู่แพ็กเกจสุขภาพ & จัดทำใบเสนอราคา (Precision Package Quotation)")
+        st.caption("แนะนำแพ็กเกจตรวจสุขภาพที่เหมาะสมที่สุดตามประวัติทางคลินิก พร้อมระบบประกอบชุดตรวจเสริมและสรุปใบเสนอราคา")
+
+        col_pkg_left, col_pkg_right = st.columns([1.55, 1.05], gap="large")
+
+        # ── Primary & Tailor-Made Package Resolution ──
+        top_std = top3_packages[0] if top3_packages else {}
+        std_name = top_std.get("name") or top_std.get("short_name", "แพ็กเกจตรวจสุขภาพทั่วไป")
+        std_price = int(top_std.get("price", 2990))
+        std_fit = float(top_std.get("ml_score_pct", top_std.get("fit_pct", 92.0)))
+        bullets = top_std.get("bullets", [])
+
+        # Construct concise clinical indication
+        reason_parts = []
+        if sys_val >= 140:
+            reason_parts.append(f"ความดันสูง ({sys_val:.0f}/{dia_bp_val:.0f} mmHg)")
+        elif sys_val >= 130:
+            reason_parts.append("ความดันก้ำกึ่งเฝ้าระวัง")
+
+        if bmi_val >= 25:
+            reason_parts.append(f"BMI {bmi_val:.1f} เกินเกณฑ์มาตรฐาน")
+        elif bmi_val >= 23:
+            reason_parts.append("น้ำหนักเกินเกณฑ์เล็กน้อย")
+
+        if float(lab_snap.get("egfr", 90)) < 60:
+            reason_parts.append("ค่าการทำงานของไต eGFR ลดลง")
+        if float(lab_snap.get("alt_u_l", 20)) > 40:
+            reason_parts.append("เอนไซม์ตับ ALT สูง")
+        if float(lab_snap.get("tsh_miu_l", 2.0)) > 4.5:
+            reason_parts.append("ฮอร์โมนไทรอยด์ TSH ผิดปกติ")
+
+        clinical_reason_text = " + ".join(reason_parts) if reason_parts else "คัดกรองสุขภาพประจำปีตามช่วงอายุและสรีรวิทยา"
+
+        with col_pkg_left:
+            # ── Card 1: Best Match Package ──
+            render_html(
+                f"""
+                <div style="background:white; border:2px solid #0F766E; border-top:5px solid #0F766E; border-radius:14px; padding:18px 20px; box-shadow:0 4px 14px rgba(15,118,110,0.06); margin-bottom:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.75rem; font-weight:700; color:#0F766E; text-transform:uppercase; letter-spacing:0.04em;">
+                            ⭐ แพ็กเกจหลักที่เหมาะสมที่สุด (Best Match)
+                        </span>
+                        <span style="background:#CCFBF1; color:#0F766E; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:6px;">
+                            ความแม่นยำ {std_fit:.1f}%
+                        </span>
+                    </div>
+                    <div style="font-size:1.25rem; font-weight:800; color:#0F172A; margin:6px 0;">
+                        {std_name}
+                    </div>
+                    <div style="font-size:1.65rem; font-weight:800; color:#0F766E; font-family:'JetBrains Mono',monospace;">
+                        ฿{std_price:,}
+                    </div>
+                    <div style="margin-top:10px; font-size:0.82rem; color:#475569; background:#F8FAFC; padding:10px 12px; border-radius:8px; border-left:3px solid #0F766E;">
+                        <b>🩺 เหตุผลทางการแพทย์:</b> {clinical_reason_text}
+                    </div>
+                </div>
+                """
+            )
+
+            btn_col1, btn_col2 = st.columns([1, 1.2])
+            with btn_col1:
+                if st.button("📋 ดูรายการตรวจ", key=f"btn_view_bullets_{sel_pid_str}", use_container_width=True):
+                    show_package_details_dialog(std_name, std_price, bullets, clinical_reason_text)
+            with btn_col2:
+                selected_primary_key = f"active_pkg_sel_{sel_pid_str}"
+                is_selected = st.session_state.get(selected_primary_key, "std") == "std"
+                if st.button(
+                    "✅ เลือกแพ็กเกจนี้" if not is_selected else "✔️ แพ็กเกจที่เลือกอยู่",
+                    key=f"btn_choose_std_{sel_pid_str}",
+                    type="primary" if is_selected else "secondary",
+                    use_container_width=True,
+                ):
+                    st.session_state[selected_primary_key] = "std"
+                    st.rerun()
+
+            # ── Card 2: Bespoke Tailor-Made Option (If Gap Detected or ID 6) ──
+            if needs_custom or sel_pid_str == "6" or pers_pkg:
+                bespoke_name = pers_pkg.get("name", "แพ็กเกจตรวจเฉพาะบุคคล (Bespoke Modular)")
+                bespoke_price = int(pers_pkg.get("price", 4800))
+                bespoke_full = int(pers_pkg.get("full_price", 5800))
+                bespoke_disc = int(pers_pkg.get("discount_pct", 18))
+                bespoke_reason = pers_pkg.get("gap_reason_th", "ประกอบชุดตรวจครอบคลุมทุกความเสี่ยงเฉพาะบุคคล 100%")
+
+                st.write("")
+                render_html(
+                    f"""
+                    <div style="background:linear-gradient(180deg,#F0FDF4 0%,#FFFFFF 100%); border:1.5px solid #16A34A; border-radius:12px; padding:16px 18px; margin-bottom:12px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.75rem; font-weight:700; color:#15803D; text-transform:uppercase;">
+                                🧬 ทางเลือก: แพ็กเกจเฉพาะบุคคล (Tailor-Made)
+                            </span>
+                            <span style="background:#DCFCE7; color:#166534; font-size:0.72rem; font-weight:700; padding:2px 6px; border-radius:4px;">
+                                ลด {bespoke_disc}%
+                            </span>
+                        </div>
+                        <div style="font-size:1.1rem; font-weight:800; color:#0F172A; margin:4px 0;">{bespoke_name}</div>
+                        <div style="display:flex; align-items:baseline; gap:8px;">
+                            <span style="font-size:1.4rem; font-weight:800; color:#16A34A; font-family:'JetBrains Mono',monospace;">฿{bespoke_price:,}</span>
+                            <span style="text-decoration:line-through; color:#94A3B8; font-size:0.82rem;">฿{bespoke_full:,}</span>
+                        </div>
+                        <div style="font-size:0.78rem; color:#15803D; margin-top:6px;">
+                            💡 {bespoke_reason}
+                        </div>
+                    </div>
+                    """
+                )
+                if st.button("🧬 สลับมาใช้แพ็กเกจเฉพาะบุคคลนี้", key=f"btn_switch_bespoke_{sel_pid_str}", use_container_width=True):
+                    st.session_state[selected_primary_key] = "bespoke"
+                    st.rerun()
+
+            st.markdown("---")
+
+            # ── 3. Add-on Modular Tests Section ──
+            st.markdown("##### ➕ รายการตรวจเสริมที่แนะนำเพิ่มเติม (Add-on Modules)")
+            st.caption("สามารถเลือกเพิ่มรายการตรวจเฉพาะทางที่ตรงกับความกังวลของผู้ป่วย เพื่อรวมในใบเสนอราคาฉบับเดียวกัน")
+
+            addon_options = {
+                "ADDON_US_ABDOMEN": {"name": "อัลตราซาวด์ช่องท้องส่วนบนและล่าง (Ultrasound Whole Abdomen)", "price": 990, "organ": "ตับ/ไต/ถุงน้ำดี"},
+                "ADDON_EKG": {"name": "ตรวจคลื่นไฟฟ้าหัวใจ (EKG 12-Leads)", "price": 450, "organ": "หัวใจและหลอดเลือด"},
+                "ADDON_RENAL": {"name": "ตรวจการทำงานของไตและโปรตีนรั่ว (Creatinine + eGFR + UACR)", "price": 650, "organ": "ไตและระบบขับถ่าย"},
+                "ADDON_THYROID": {"name": "ตรวจสมดุลฮอร์โมนไทรอยด์ (TSH + Free T4)", "price": 750, "organ": "ต่อมไร้ท่อ"},
+                "ADDON_MAMMOGRAM": {"name": "ดิจิทัลแมมโมแกรมและอัลตราซาวด์เต้านม (Digital Mammogram)", "price": 2500, "organ": "คัดกรองเต้านม"},
+                "ADDON_BONE": {"name": "ตรวจความหนาแน่นมวลกระดูก (DEXA Bone Density Scan)", "price": 1200, "organ": "กระดูกและข้อ"},
+            }
+
+            # Smart defaults based on patient profile
+            default_addons = []
+            if bmi_val >= 25 or _is_ht or sys_val >= 140:
+                default_addons.append("ADDON_US_ABDOMEN")
+            if age_val >= 45:
+                default_addons.append("ADDON_EKG")
+
+            selected_addon_keys = st.multiselect(
+                "เลือกรายการตรวจเสริมที่ต้องการรวมในใบเสนอราคา:",
+                options=list(addon_options.keys()),
+                default=[k for k in default_addons if k in addon_options],
+                format_func=lambda k: f"{addon_options[k]['name']} (+฿{addon_options[k]['price']:,})",
+                key=f"addons_multisel_{sel_pid_str}",
+            )
+
+        # ── Quotation Summary (Right Column) ──
+        is_bespoke_active = st.session_state.get(selected_primary_key, "std") == "bespoke"
+        active_primary_name = bespoke_name if is_bespoke_active else std_name
+        active_primary_price = bespoke_price if is_bespoke_active else std_price
+
+        active_addons = [addon_options[k] for k in selected_addon_keys if k in addon_options]
+        addons_total = sum(a["price"] for a in active_addons)
+        gross_total = active_primary_price + addons_total
+
+        # Bundle discount: 10% discount on entire package if 2 or more add-ons are chosen
+        discount_amount = int(gross_total * 0.10) if len(active_addons) >= 2 else (int(gross_total * 0.05) if len(active_addons) == 1 else 0)
+        net_payable = gross_total - discount_amount
+
+        with col_pkg_right:
+            render_html(
+                f"""
+                <div class="quotation-card">
+                    <div class="quotation-header">
+                        🧾 สรุปใบเสนอราคาตรวจสุขภาพ (Quotation)
+                    </div>
+                    <div style="font-size:0.85rem; color:#64748B; margin-bottom:12px;">
+                        ผู้รับบริการ: <b>{hn_display}</b>
+                    </div>
+                    
+                    <div class="quotation-row">
+                        <span><b>แพ็กเกจหลัก:</b> {active_primary_name[:28]}...</span>
+                        <b>฿{active_primary_price:,}</b>
+                    </div>
+                    
+                    {"".join([f'<div class="quotation-row" style="color:#475569; font-size:0.82rem;"><span>+ {a["name"][:26]}...</span><span>+฿{a["price"]:,}</span></div>' for a in active_addons])}
+                    
+                    <div style="border-top:1px dashed #CBD5E1; margin:10px 0;"></div>
+                    
+                    <div class="quotation-row" style="font-size:0.82rem; color:#64748B;">
+                        <span>รวมราคาปกติ</span>
+                        <span>฿{gross_total:,}</span>
+                    </div>
+                    
+                    {f'<div class="quotation-row" style="font-size:0.82rem; color:#D97706; font-weight:700;"><span>ส่วนลดชุดเหมาจ่าย</span><span>-฿{discount_amount:,}</span></div>' if discount_amount > 0 else ''}
+                    
+                    <div class="quotation-total">
+                        <div>
+                            <div style="font-size:0.8rem; font-weight:700; color:#0F172A; text-transform:uppercase;">ยอดสุทธิที่ต้องชำระ</div>
+                            <div style="font-size:0.72rem; color:#64748B;">ราคารวมแพทย์และบริการคลินิก</div>
+                        </div>
+                        <div class="quotation-total-price">
+                            ฿{net_payable:,}
+                        </div>
+                    </div>
+                </div>
+                """
+            )
+
+            st.write("")
+            if st.button("✅ บันทึกใบเสนอราคาลงเวชระเบียน", key=f"btn_save_quote_{sel_pid_str}", type="primary", use_container_width=True):
+                st.session_state["prescribed_pkg"] = {
+                    "patient_id": sel_pid_str,
+                    "package_name": active_primary_name,
+                    "price": net_payable,
+                    "addons": [a["name"] for a in active_addons],
+                }
+                st.success(f"บันทึกใบเสนอราคาสำหรับ {hn_display} เรียบร้อยแล้ว (ยอดสุทธิ ฿{net_payable:,})")
+
+            if st.button("🖨️ พิมพ์ใบเสนอราคา / ส่งต่อคนไข้", key=f"btn_print_quote_{sel_pid_str}", use_container_width=True):
+                show_quotation_print_dialog(
+                    hn_display=hn_display,
+                    gender_str=gender_str,
+                    age_val=age_val,
+                    primary_pkg_name=active_primary_name,
+                    primary_pkg_price=active_primary_price,
+                    selected_addons=active_addons,
+                    net_total=net_payable,
+                    discount_val=discount_amount,
+                )
+
+    # ==========================================================================
+    # TAB 2: 🧪 ผลแล็บ & ประวัติสุขภาพ
+    # ==========================================================================
+    with pic_tabs[1]:
+        st.markdown("#### 🧪 สัญญาณชีพและผลตรวจทางห้องปฏิบัติการ (Health Profile & Labs)")
+        st.caption("รวบรวมตัวชี้วัดทางสรีรวิทยาและผลตรวจทางห้องปฏิบัติการ 26 รายการ เพื่อประเมินความเสี่ยงระดับอวัยวะ")
 
         # 4 Key Vitals
         v_col1, v_col2, v_col3, v_col4 = st.columns(4)
@@ -309,139 +620,71 @@ def render_patient_card_view(
             st.dataframe(pd.DataFrame(lab_records), use_container_width=True, hide_index=True)
 
     # ==========================================================================
-    # TAB 2: แพ็กเกจที่แนะนำ & ปรับแต่งเฉพาะบุคคล
-    # ==========================================================================
-    with pic_tabs[1]:
-        st.markdown("#### 📦 ระบบจับคู่แพ็กเกจสุขภาพและการประกอบชุดตรวจเฉพาะบุคคล (Modular Tailor-Made)")
-        st.caption("เปรียบเทียบระหว่างแพ็กเกจมาตรฐานที่ดีที่สุด กับ แพ็กเกจประกอบเฉพาะบุคคล (ครอบคลุม 100% ของความเสี่ยงที่ตรวจพบ)")
-
-        comp_col1, comp_col2 = st.columns(2)
-
-        # Standard Package
-        top_std = top3_packages[0] if top3_packages else {}
-        std_name = top_std.get("name") or top_std.get("short_name", "แพ็กเกจมาตรฐาน")
-        std_price = int(top_std.get("price", 3500))
-        std_fit = float(top_std.get("ml_score_pct", top_std.get("fit_pct", 75.0)))
-        std_cov = pers_pkg.get("std_coverage_pct", 65)
-
-        with comp_col1:
-            render_html(
-                f"""
-                <div style="background:white; border:1px solid #E2E8F0; border-top:4px solid #0284C7; border-radius:14px; padding:18px; box-shadow:0 2px 8px rgba(15,23,42,0.03); height:100%;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:0.75rem; font-weight:700; color:#0369A1; text-transform:uppercase;">📦 แพ็กเกจมาตรฐานอันดับ 1</span>
-                        <span style="background:#E0F2FE; color:#0284C7; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:6px;">ความแม่นยำ {std_fit:.1f}%</span>
-                    </div>
-                    <div style="font-size:1.15rem; font-weight:800; color:#0F172A; margin:6px 0;">{std_name}</div>
-                    <div style="font-size:1.55rem; font-weight:800; color:#0284C7; font-family:JetBrains Mono,monospace;">฿{std_price:,}</div>
-                    <div style="margin-top:10px; font-size:0.8rem; color:#64748B;">
-                        ครอบคลุมปัญหาสุขภาพคนไข้: <b style="color:#D97706;">{std_cov}%</b>
-                    </div>
-                </div>
-                """
-            )
-
-        # Tailor-Made Package
-        bespoke_price = int(pers_pkg.get("price", 4800))
-        bespoke_full = int(pers_pkg.get("full_price", 5800))
-        bespoke_disc = int(pers_pkg.get("discount_pct", 18))
-        bespoke_reason = pers_pkg.get("gap_reason_th", "ประกอบชุดตรวจครอบคลุมทุกความเสี่ยงเฉพาะบุคคล")
-
-        with comp_col2:
-            render_html(
-                f"""
-                <div style="background:linear-gradient(180deg,#F0FDF4 0%,#FFFFFF 100%); border:2px solid #0F766E; border-top:4px solid #0F766E; border-radius:14px; padding:18px; box-shadow:0 4px 14px rgba(15,118,110,0.08); height:100%;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:0.75rem; font-weight:700; color:#0F766E; text-transform:uppercase;">🧬 แนะนำแพ็กเกจเฉพาะบุคคล (Tailor-Made)</span>
-                        <span style="background:#CCFBF1; color:#0F766E; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:6px;">ครอบคลุม 100%</span>
-                    </div>
-                    <div style="font-size:1.15rem; font-weight:800; color:#0F172A; margin:6px 0;">{pers_pkg.get('name', 'แพ็กเกจเฉพาะบุคคล')}</div>
-                    <div style="display:flex; align-items:baseline; gap:8px;">
-                        <span style="font-size:1.55rem; font-weight:800; color:#0F766E; font-family:JetBrains Mono,monospace;">฿{bespoke_price:,}</span>
-                        <span style="text-decoration:line-through; color:#94A3B8; font-size:0.85rem;">฿{bespoke_full:,}</span>
-                        <span style="background:#FEF3C7; color:#B45309; font-size:0.75rem; font-weight:700; padding:2px 6px; border-radius:4px;">ลด {bespoke_disc}%</span>
-                    </div>
-                    <div style="margin-top:10px; font-size:0.78rem; color:#047857; line-height:1.4;">
-                        💡 {bespoke_reason}
-                    </div>
-                </div>
-                """
-            )
-
-        st.markdown("---")
-
-        # Interactive Modular Composer
-        st.markdown("##### 🛠️ ปรับแต่งโมดูลการตรวจเฉพาะบุคคล (Interactive Modular Composer)")
-        st.caption("สามารถเลือกเพิ่มหรือตัดรายการตรวจตามดุลยพินิจของแพทย์หรือความประสงค์ของผู้ป่วย โดยระบบจะคำนวณส่วนลดชุดเหมาจ่ายอัตโนมัติ")
-
-        all_mod_options = {code: f"{spec['organ']}: {spec['name']} (฿{spec['price']:,})" for code, spec in MODULAR_TEST_CATALOG.items()}
-        selected_mod_default = [m["module_code"] for m in pers_pkg.get("selected_modules", []) if m["module_code"] in all_mod_options]
-
-        chosen_modules = st.multiselect(
-            "เลือกโมดูลการตรวจที่ต้องการรวมในแพ็กเกจ:",
-            options=list(all_mod_options.keys()),
-            default=selected_mod_default,
-            format_func=lambda x: all_mod_options.get(x, x),
-            key=f"mod_selector_{sel_pid_str}",
-        )
-
-        if chosen_modules:
-            total_raw = sum(int(MODULAR_TEST_CATALOG[c]["price"]) for c in chosen_modules if c in MODULAR_TEST_CATALOG)
-            disc_rate = 18 if len(chosen_modules) >= 4 else 15
-            net_custom_price = int(round((total_raw * (100 - disc_rate) / 100.0) / 10.0) * 10)
-            save_amount = total_raw - net_custom_price
-
-            m_c1, m_c2, m_c3 = st.columns(3)
-            m_c1.metric("จำนวนโมดูลที่เลือก", f"{len(chosen_modules)} โมดูล")
-            m_c2.metric("ราคารวมก่อนลด", f"฿{total_raw:,}")
-            m_c3.metric("ราคาสุทธิ (ส่วนลดเหมาจ่าย)", f"฿{net_custom_price:,}", delta=f"-฿{save_amount:,} ({disc_rate}%)")
-
-            st.write("")
-            if st.button("✨ บันทึกและเลือกใช้แพ็กเกจเฉพาะบุคคลนี้ (Prescribe Custom Package)", key=f"btn_prescribe_{sel_pid_str}", type="primary", use_container_width=True):
-                st.session_state["prescribed_pkg"] = {
-                    "patient_id": sel_pid_str,
-                    "package_name": f"เฉพาะบุคคล ({len(chosen_modules)} โมดูล)",
-                    "price": net_custom_price,
-                    "modules": chosen_modules,
-                }
-                st.success(f"✅ บันทึกแพ็กเกจเฉพาะบุคคลสำหรับผู้ป่วย {hn_display} สำเร็จแล้ว (฿{net_custom_price:,})")
-
-    # ==========================================================================
-    # TAB 3: บทสนทนานำเสนอ & แผนปฏิบัติการ
+    # TAB 3: 🤖 เหตุผล AI & บทสนทนานำเสนอ
     # ==========================================================================
     with pic_tabs[2]:
-        st.markdown("#### 🗣️ แนวทางการสื่อสารและสคริปต์พูดคุยกับผู้ป่วย (Outreach Talk Track)")
-        st.caption("สคริปต์บทสนทนาที่เน้นความห่วงใย จริยธรรมทางการแพทย์ และประโยชน์สูงสุดของผู้รับบริการ")
+        st.markdown("#### 🤖 ปัจจัยขับเคลื่อนทางการแพทย์และการสื่อสารเชิงรุก (AI Drivers & Outreach)")
+        st.caption("วิเคราะห์เหตุผลที่โมเดลคาดการณ์ความพร้อมในการรับบริการ พร้อมสคริปต์บทสนทนาสำหรับเจ้าหน้าที่และพยาบาล")
 
-        top_driver_name = pers_pkg.get("selected_modules", [{}])[1].get("organ", "การทำงานของอวัยวะสำคัญ") if len(pers_pkg.get("selected_modules", [])) > 1 else "สุขภาพทั่วไป"
+        col_xai_plot, col_talk_track = st.columns([1.2, 1.3], gap="large")
 
-        talk_track_text = (
-            f"สวัสดีครับ/ค่ะ วันนี้จากผลการตรวจติดตามสุขภาพเบื้องต้นของคุณ {hn_display} "
-            f"ทางทีมแพทย์สังเกตเห็นตัวชี้วัดด้าน {top_driver_name} ที่เริ่มมีความเสี่ยงหรือควรเฝ้าระวังเพิ่มเติม "
-            f"เพื่อความอุ่นใจและป้องกันก่อนเกิดอาการ ทางคลินิกจึงขอแนะนำโปรแกรมตรวจสุขภาพเฉพาะบุคคล "
-            f"ที่รวมรายการตรวจที่จำเป็นโดยตรง ช่วยให้คุณได้รับการดูแลที่ตรงจุดและคุ้มค่าที่สุดครับ/ค่ะ"
-        )
+        with col_xai_plot:
+            st.markdown("##### 📊 ปัจจัยที่ส่งผลต่อคะแนน (Clinical Drivers)")
+            if shap_explanation is not None:
+                vals_arr = np.asarray(shap_explanation.values, dtype=float)
+                f_names = list(shap_explanation.feature_names)
+                order_w = np.argsort(np.abs(vals_arr))
+                labels_w = [f_names[i] for i in order_w]
+                shap_w = [float(vals_arr[i]) for i in order_w]
+                colors_w = ["#0F766E" if v >= 0 else "#DC2626" for v in shap_w]
 
-        render_html(
-            f"""
-            <div style="background:#F0FDF4; border:1px solid #86EFAC; border-left:5px solid #16A34A; border-radius:10px; padding:18px 22px; margin-bottom:16px;">
-                <div style="font-weight:800; color:#166534; font-size:1.02rem; margin-bottom:8px;">
-                    💬 บทสนทนาแนะนำสำหรับเจ้าหน้าที่หน้างาน (Caring & Service-Oriented Talk Track)
+                fig_shap = go.Figure(go.Bar(
+                    x=shap_w,
+                    y=labels_w,
+                    orientation="h",
+                    marker=dict(color=colors_w),
+                    text=[f"{v:+.3f}" for v in shap_w],
+                    textposition="outside",
+                ))
+                fig_shap.update_layout(
+                    title=dict(text="<b>น้ำหนักปัจจัยทางสุขภาพ (Log-Odds Impact)</b>", font=dict(size=12)),
+                    plot_bgcolor="white",
+                    paper_bgcolor="white",
+                    height=300,
+                    margin=dict(l=10, r=40, t=35, b=25),
+                )
+                st.plotly_chart(fig_shap, use_container_width=True)
+                st.caption("ℹ️ สีเขียว (+) แสดงปัจจัยที่บ่งชี้ว่าควรได้รับการตรวจสุขภาพเพิ่มเติม")
+
+        with col_talk_track:
+            st.markdown("##### 💬 บทสนทนาแนะนำสำหรับเจ้าหน้าที่ (Caring Talk Track)")
+            top_reason = clinical_reason_text if clinical_reason_text else "การตรวจประเมินสุขภาพประจำปี"
+            talk_track_text = (
+                f"สวัสดีครับ/ค่ะ วันนี้จากการตรวจติดตามสุขภาพเบื้องต้นของคุณ {hn_display} "
+                f"ทางทีมแพทย์สังเกตเห็นตัวชี้วัดด้าน {top_reason} ที่เริ่มมีความเสี่ยงหรือควรเฝ้าระวังเพิ่มเติม "
+                f"เพื่อความอุ่นใจและป้องกันก่อนเกิดภาวะแทรกซ้อน ทางคลินิกจึงขอแนะนำโปรแกรมตรวจสุขภาพ {active_primary_name} "
+                f"ที่เน้นการดูแลตรงจุด ช่วยให้คุณได้รับการดูแลที่คุ้มค่าและปลอดภัยที่สุดครับ/ค่ะ"
+            )
+
+            render_html(
+                f"""
+                <div style="background:#F0FDF4; border:1px solid #86EFAC; border-left:5px solid #16A34A; border-radius:10px; padding:16px 20px; margin-bottom:14px;">
+                    <div style="font-weight:800; color:#166534; font-size:0.95rem; margin-bottom:6px;">
+                        🗣️ สคริปต์พูดคุยที่เน้นความห่วงใยและการบริการ (Caring & Service-Oriented):
+                    </div>
+                    <div style="font-size:0.92rem; color:#14532D; line-height:1.6; font-style:italic; background:rgba(255,255,255,0.85); padding:12px 16px; border-radius:8px;">
+                        "{talk_track_text}"
+                    </div>
                 </div>
-                <div style="font-size:0.95rem; color:#14532D; line-height:1.6; font-style:italic; background:rgba(255,255,255,0.8); padding:14px 18px; border-radius:8px;">
-                    "{talk_track_text}"
+                """
+            )
+
+            render_html(
+                """
+                <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:14px 18px; font-size:0.82rem; color:#475569; line-height:1.55;">
+                    🛡️ <b>หลักจริยธรรมและการดูแลสุขภาพเชิงป้องกัน:</b><br>
+                    • มุ่งเน้นการให้ความรู้ สร้างความเข้าใจในผลตรวจ Lab และคุณประโยชน์ของการคัดกรองระยะแรกเริ่ม<br>
+                    • หลีกเลี่ยงการสร้างความตื่นตระหนก หรือใช้คำว่า <i>"ระบบ AI สั่งให้ซื้อ"</i>
                 </div>
-            </div>
-            """
-        )
-
-        render_html(
-            """
-            <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:14px 18px; font-size:0.82rem; color:#475569; line-height:1.55;">
-                🛡️ <b>หลักจริยธรรมและการดูแลสุขภาพเชิงป้องกัน:</b><br>
-                • หลีกเลี่ยงการสร้างความตื่นตระหนก หรือใช้คำว่า <i>"ระบบ AI สั่งให้ซื้อ"</i><br>
-                • มุ่งเน้นการให้ความรู้ สร้างความเข้าใจในผล Lab และอธิบายถึงความสำคัญของการตรวจคัดกรองระยะแรกเริ่ม
-            </div>
-            """
-        )
-
+                """
+            )
