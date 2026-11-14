@@ -39,6 +39,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ── Brand Card (Flat & Professional) ─────────────────────────────────────── */
+.pc-brand-card,
 .clinic-brand-card {
   background-color: var(--primary-teal);
   border-radius: 12px;
@@ -49,12 +50,14 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.pc-brand-header,
 .clinic-brand-header {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
+.pc-brand-icon,
 .clinic-brand-icon {
   background: rgba(255, 255, 255, 0.2);
   width: 40px;
@@ -67,6 +70,7 @@ h1, h2, h3, h4, h5, h6 {
   flex-shrink: 0;
 }
 
+.pc-brand-title,
 .clinic-brand-title {
   font-size: 1.02rem;
   font-weight: 700;
@@ -74,6 +78,7 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 1.25;
 }
 
+.pc-brand-tagline,
 .clinic-brand-tagline {
   font-size: 0.74rem;
   color: var(--primary-teal-light);
@@ -116,6 +121,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ── Accessible Nav Breadcrumb ───────────────────────────────────────────── */
+nav.pc-breadcrumb,
 nav.app-breadcrumb {
   display: flex;
   align-items: center;
@@ -129,6 +135,7 @@ nav.app-breadcrumb {
   margin-bottom: 16px;
 }
 
+nav.pc-breadcrumb ol,
 nav.app-breadcrumb ol {
   display: flex;
   align-items: center;
@@ -138,18 +145,21 @@ nav.app-breadcrumb ol {
   margin: 0;
 }
 
+nav.pc-breadcrumb li,
 nav.app-breadcrumb li {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
 
+nav.pc-breadcrumb .breadcrumb-item-active,
 nav.app-breadcrumb .breadcrumb-item-active {
   color: var(--primary-teal);
   font-weight: 700;
 }
 
 /* ── Error Boundary Container ────────────────────────────────────────────── */
+.pc-error-boundary,
 .error-boundary-card {
   background: #FEF2F2;
   border: 1.5px solid #F87171;
@@ -159,6 +169,7 @@ nav.app-breadcrumb .breadcrumb-item-active {
   margin: 20px 0;
 }
 
+.pc-error-title,
 .error-boundary-title {
   font-size: 1.08rem;
   font-weight: 700;
@@ -166,6 +177,7 @@ nav.app-breadcrumb .breadcrumb-item-active {
   margin-bottom: 6px;
 }
 
+.pc-error-desc,
 .error-boundary-desc {
   font-size: 0.88rem;
   color: #7F1D1D;
