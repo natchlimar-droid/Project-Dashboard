@@ -144,61 +144,64 @@ def render_patient_card_view(
     if not target_pid and "search_patient_id" in st.session_state:
         target_pid = str(st.session_state["search_patient_id"]).strip()
 
+    if not target_pid and "pic_search_input" in st.session_state and str(st.session_state["pic_search_input"]).strip():
+        target_pid = str(st.session_state["pic_search_input"]).strip()
+
     if not target_pid and avail_df is not None and not avail_df.empty:
         target_pid = str(avail_df.iloc[0]["patient_id"]).strip()
 
     if not target_pid:
         target_pid = "605"  # Default sample patient (Thyroid + Anemia + Metabolic)
 
-    # Keep widget state synchronized so external redirects and quick buttons reflect immediately
-    if "pic_search_input" not in st.session_state or st.session_state.get("pic_search_input") != target_pid:
+    # Initialize widget state strictly BEFORE creating the text_input widget
+    if "pic_search_input" not in st.session_state or not str(st.session_state.get("pic_search_input", "")).strip():
         st.session_state["pic_search_input"] = target_pid
+    elif "search_patient_id" in st.session_state and str(st.session_state["search_patient_id"]).strip():
+        st.session_state["pic_search_input"] = str(st.session_state["search_patient_id"]).strip()
+        target_pid = st.session_state["pic_search_input"]
+
+    st.session_state["search_patient_id"] = target_pid
 
     # ── 2. Top Search & Quick Case Selector ───────────────────────────────────
+    def _on_search_text_changed() -> None:
+        val = str(st.session_state.get("pic_search_input", "")).strip()
+        if val:
+            st.session_state["search_patient_id"] = val
+
+    def _select_scenario(pid: str) -> None:
+        st.session_state["search_patient_id"] = pid
+        st.session_state["pic_search_input"] = pid
+
     search_col1, search_col2 = st.columns([3.5, 1.0])
     with search_col1:
-        entered_pid = st.text_input(
+        st.text_input(
             "🔍 ค้นหารหัส HN / ชื่อผู้ป่วย (เช่น 605, 6, 1, 25, HN6800605):",
             key="pic_search_input",
             placeholder="พิมพ์รหัส HN หรือ Patient ID...",
+            on_change=_on_search_text_changed,
         )
-        if entered_pid and entered_pid.strip() and entered_pid.strip() != target_pid:
-            target_pid = entered_pid.strip()
-            st.session_state["search_patient_id"] = target_pid
 
     with search_col2:
         st.write("")
         st.write("")
         if st.button("🔍 ค้นหา", key="btn_search_pid", type="primary", use_container_width=True):
-            target_pid = (entered_pid or target_pid).strip()
-            st.session_state["search_patient_id"] = target_pid
-            st.session_state["pic_search_input"] = target_pid
+            val = str(st.session_state.get("pic_search_input", "")).strip()
+            if val:
+                st.session_state["search_patient_id"] = val
             st.rerun()
 
     st.caption("⚡ เคสตัวอย่างสำหรับทดสอบระบบ (Quick Clinical Scenarios):")
     q_c1, q_c2, q_c3, q_c4 = st.columns(4)
     with q_c1:
-        if st.button("🧪 ID 6: ไต+ตับ (Bespoke)", key="btn_q_6", use_container_width=True):
-            st.session_state["search_patient_id"] = "6"
-            st.session_state["pic_search_input"] = "6"
-            st.rerun()
+        st.button("🧪 ID 6: ไต+ตับ (Bespoke)", key="btn_q_6", on_click=_select_scenario, args=("6",), use_container_width=True)
     with q_c2:
-        if st.button("🦋 ID 605: ไทรอยด์+โลหิตจาง", key="btn_q_605", use_container_width=True):
-            st.session_state["search_patient_id"] = "605"
-            st.session_state["pic_search_input"] = "605"
-            st.rerun()
+        st.button("🦋 ID 605: ไทรอยด์+โลหิตจาง", key="btn_q_605", on_click=_select_scenario, args=("605",), use_container_width=True)
     with q_c3:
-        if st.button("🫀 ID 1: ความดัน/เมตาบอลิก", key="btn_q_1", use_container_width=True):
-            st.session_state["search_patient_id"] = "1"
-            st.session_state["pic_search_input"] = "1"
-            st.rerun()
+        st.button("🫀 ID 1: ความดัน/เมตาบอลิก", key="btn_q_1", on_click=_select_scenario, args=("1",), use_container_width=True)
     with q_c4:
-        if st.button("🌱 ID 25: สุขภาพทั่วไป (Routine)", key="btn_q_25", use_container_width=True):
-            st.session_state["search_patient_id"] = "25"
-            st.session_state["pic_search_input"] = "25"
-            st.rerun()
+        st.button("🌱 ID 25: สุขภาพทั่วไป (Routine)", key="btn_q_25", on_click=_select_scenario, args=("25",), use_container_width=True)
 
-    sel_pid_str = target_pid.strip()
+    sel_pid_str = str(st.session_state.get("search_patient_id", target_pid)).strip()
 
     # ── 3. Resolve Patient Data & Vitals ───────────────────────────────────────
     # Candidate lookup IDs (handling HN, prefixes, int, str)
