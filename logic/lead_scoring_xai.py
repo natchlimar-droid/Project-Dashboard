@@ -2574,24 +2574,21 @@ def render_lead_scoring_xai_dashboard(raw_clinical_df=None, prophet_model=None, 
             pkg_recommendation_html = ""
             try:
                 from logic.package_matching_v2 import predict_patient_packages_v2
+                from services.data_loader import resolve_patient_lab_snapshot
                 raw_row = target_audience_df.iloc[orig_row_idx].to_dict()
-                patient_snap = {
-                    "age": int(round(age_val)),
-                    "gender": str(raw_row.get("gender_clean", raw_row.get("gender", "M"))),
-                    "bmi": float(bmi_val),
-                    "systolic_bp": float(sys_val),
-                    "diastolic_bp": float(raw_row.get("diastolic_bp", 80.0) or 80.0),
-                    "fpg_mg_dl": float(raw_row.get("fpg_mg_dl", 108.0 if _feat("Diabetes (Dx)") >= 0.5 else 92.0) or 92.0),
-                    "hba1c_pct": float(raw_row.get("hba1c_pct", 6.6 if _feat("Diabetes (Dx)") >= 0.5 else 5.5) or 5.5),
-                    "ldl_mg_dl": float(raw_row.get("ldl_mg_dl", 155.0 if _feat("Dyslipidemia (Dx)") >= 0.5 else 118.0) or 118.0),
-                    "egfr": float(raw_row.get("egfr", 85.0) or 85.0),
-                    "uacr_mg_g": float(raw_row.get("uacr_mg_g", 12.0) or 12.0),
-                    "tsh_miu_l": float(raw_row.get("tsh_miu_l", 2.1) or 2.1),
-                    "hb_g_dl": float(raw_row.get("hb_g_dl", 13.5) or 13.5),
-                    "uric_acid_mg_dl": float(raw_row.get("uric_acid_mg_dl", 5.8) or 5.8),
-                    "alt_u_l": float(raw_row.get("alt_u_l", 26.0) or 26.0),
-                    "visits_last_2y": int(round(visits_val)),
-                }
+                gender_c = 1.0 if str(gender_str) in ["หญิง", "female", "F"] else 0.0
+                patient_snap = resolve_patient_lab_snapshot(
+                    sel_pid_str=str(selected_cid),
+                    age_val=float(age_val),
+                    gender_code=gender_c,
+                    bmi_val=float(bmi_val),
+                    sys_val=float(sys_val),
+                    dia_bp_val=float(raw_row.get("diastolic_bp", 80.0) or (80.0 if sys_val < 130 else 85.0)),
+                    is_dm=bool(_feat("Diabetes (Dx)") >= 0.5),
+                    is_ht=bool(_feat("Hypertension (Dx)") >= 0.5 or sys_val >= 140.0),
+                    is_dlp=bool(_feat("Dyslipidemia (Dx)") >= 0.5),
+                    visits_val=float(visits_val),
+                )
                 v2_res = predict_patient_packages_v2(patient_snap)
                 top3_list = v2_res.get("top3_packages", [])
                 top_std = top3_list[0] if top3_list else None

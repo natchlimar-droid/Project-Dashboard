@@ -31,10 +31,12 @@ from services.ml_engine import predict_patient_propensity
 
 
 def render_html(html_str: str) -> None:
-    """Renders HTML safely without Markdown 4-space code block indentation artifacts."""
-    lines = [line.strip() for line in html_str.splitlines() if line.strip()]
-    cleaned = "".join(lines)
-    st.markdown(cleaned, unsafe_allow_html=True)
+    """Renders HTML safely using st.html (or cleaned st.markdown fallback)."""
+    if hasattr(st, "html"):
+        st.html(html_str)
+    else:
+        lines = [line.strip() for line in html_str.splitlines() if line.strip()]
+        st.markdown("".join(lines), unsafe_allow_html=True)
 
 
 @st.dialog("📋 รายละเอียดรายการตรวจในแพ็กเกจ")
@@ -256,7 +258,7 @@ def render_patient_card_view(
             sys_val = float(matched_pt.get("sbp", matched_pt.get("systolic_bp", matched_pt.get("systolic", 120.0))))
             dia_bp_val = float(matched_pt.get("dbp", matched_pt.get("diastolic_bp", matched_pt.get("diastolic", 80.0))))
             bmi_val = float(matched_pt.get("bmi", 22.5))
-            visits_val = float(matched_pt.get("visits_last_2y", matched_pt.get("prior_visits_12m", matched_pt.get("prior_opd_visits_total", matched_pt.get("visits", 1.0)))))
+            visits_val = float(matched_pt.get("prior_visits_12m", matched_pt.get("visits_last_2y", matched_pt.get("prior_opd_visits_total", matched_pt.get("visits", 1.0)))))
             g_raw = str(matched_pt.get("gender", ""))
             g_code_raw = float(matched_pt.get("gender_code", 1.0 if g_raw in ["หญิง", "female", "F"] else 0.0))
             gender_code = 1.0 if (g_raw in ["หญิง", "female", "F"] or g_code_raw > 0.5) else 0.0
@@ -339,7 +341,10 @@ def render_patient_card_view(
 
     v2_res = predict_patient_packages_v2(lab_snap)
     top3_packages = v2_res.get("top3_packages", [])
-    pers_pkg = v2_res.get("personalized_package", {})
+    if is_lead_match and pers_pkg_override:
+        pers_pkg = pers_pkg_override
+    else:
+        pers_pkg = v2_res.get("personalized_package", {})
     needs_custom = bool(v2_res.get("needs_custom_package", False))
     risk_reasons = v2_res.get("risk_reasons", [])
 

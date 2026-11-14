@@ -18,10 +18,12 @@ from logic.patient_segmentation import segment_population_dataframe
 
 
 def render_html(html_str: str) -> None:
-    """Renders HTML safely without Markdown 4-space code block indentation artifacts."""
-    lines = [line.strip() for line in html_str.splitlines() if line.strip()]
-    cleaned = "".join(lines)
-    st.markdown(cleaned, unsafe_allow_html=True)
+    """Renders HTML safely using st.html (or cleaned st.markdown fallback)."""
+    if hasattr(st, "html"):
+        st.html(html_str)
+    else:
+        lines = [line.strip() for line in html_str.splitlines() if line.strip()]
+        st.markdown("".join(lines), unsafe_allow_html=True)
 
 
 def render_clinical_tracking_view(
