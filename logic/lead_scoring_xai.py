@@ -2712,6 +2712,22 @@ def render_lead_scoring_xai_dashboard(raw_clinical_df=None, prophet_model=None, 
 
                 st.caption("ℹ️ แถบสีแดง (+) บ่งชี้ว่าตัวแปรดังกล่าวเพิ่มความน่าจะเป็นในการซื้อแพ็กเกจ ขณะที่แถบสีน้ำเงิน (-) ลดความน่าจะเป็นเทียบกับฐานทั่วไป")
                 if st.button("👉 เปิดดูและปรับแต่งแพ็กเกจเฉพาะบุคคลใน Patient Insight Card", key=f"btn_nav_pic_{selected_cid}", type="primary", use_container_width=True):
+                    st.session_state["cached_lead_customer"] = {
+                        "customer_id": str(selected_cid),
+                        "age": float(age_val),
+                        "systolic": float(sys_val),
+                        "bmi": float(bmi_val),
+                        "visits_12m": float(visits_val),
+                        "gender": str(gender_str),
+                        "gender_code": 1.0 if gender_str in ["หญิง", "female", "F"] else 0.0,
+                        "is_dm": bool(_feat("Diabetes (Dx)") >= 0.5) if callable(_feat) else False,
+                        "is_ht": bool(_feat("Hypertension (Dx)") >= 0.5) if callable(_feat) else (float(sys_val) >= 140.0),
+                        "is_dlp": bool(_feat("Dyslipidemia (Dx)") >= 0.5) if callable(_feat) else False,
+                        "propensity_score": float(lead_score),
+                        "top_driver": str(lead_top_driver),
+                        "pers_pkg": pers_pkg,
+                        "shap_explanation": single_explanation,
+                    }
                     st.session_state["pending_nav_section"] = "patient"
                     st.session_state["search_patient_id"] = str(selected_cid)
                     st.session_state["pic_search_input"] = str(selected_cid)
