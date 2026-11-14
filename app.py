@@ -208,34 +208,47 @@ def main() -> None:
     escaped_tagline = html.escape(DEFAULT_CLINIC_TAGLINE)
 
     # ── 1. Resolve Navigation State (Deep Link & Priority Router) ─────────────
-    # Priority: pending_nav_section > query_params['page'] > session_state > default
+    # Priority: pending_nav_section > external URL change > active session state > default
     query_page = st.query_params.get("page")
     if "pending_nav_section" in st.session_state:
         target_page_key = resolve_page_key(st.session_state.pop("pending_nav_section"))
-    elif query_page:
-        target_page_key = resolve_page_key(query_page)
+        st.session_state["active_page_key"] = target_page_key
+        st.session_state["main_navigation_radio"] = PAGES[target_page_key]["full_label"]
+        st.session_state["last_synced_page"] = target_page_key
+        st.query_params["page"] = target_page_key
+    elif "main_navigation_radio" not in st.session_state:
+        # First load of session
+        initial_key = resolve_page_key(query_page) if query_page else "patient"
+        st.session_state["active_page_key"] = initial_key
+        st.session_state["main_navigation_radio"] = PAGES[initial_key]["full_label"]
+        st.session_state["last_synced_page"] = initial_key
+        st.query_params["page"] = initial_key
+        target_page_key = initial_key
     else:
-        target_page_key = resolve_page_key(st.session_state.get("active_page_key", "patient"))
+        # Check if URL parameter changed externally (e.g. browser back/forward or direct bookmark)
+        if query_page and query_page != st.session_state.get("last_synced_page"):
+            target_page_key = resolve_page_key(query_page)
+            st.session_state["active_page_key"] = target_page_key
+            st.session_state["main_navigation_radio"] = PAGES[target_page_key]["full_label"]
+            st.session_state["last_synced_page"] = target_page_key
+        else:
+            target_page_key = st.session_state.get("active_page_key", "patient")
 
     if target_page_key not in PAGES:
         target_page_key = "patient"
-
-    # Sync query parameters for shareable Deep Links
-    st.query_params["page"] = target_page_key
-    st.session_state["active_page_key"] = target_page_key
 
     # ── 2. Sidebar Brand Header & Clinic Name Customizer ──────────────────────
     with st.sidebar:
         st.markdown(
             f"""
             <div class="clinic-brand-card">
-                <div class="clinic-brand-header">
-                    <div class="clinic-brand-icon">🏥</div>
-                    <div>
-                        <div class="clinic-brand-title">{escaped_cname}</div>
-                        <div class="clinic-brand-tagline">{escaped_tagline}</div>
-                    </div>
+            <div class="clinic-brand-header">
+                <div class="clinic-brand-icon">🏥</div>
+                <div>
+                    <div class="clinic-brand-title">{escaped_cname}</div>
+                    <div class="clinic-brand-tagline">{escaped_tagline}</div>
                 </div>
+            </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -254,29 +267,25 @@ def main() -> None:
 
         # ── 3. Role-Based Navigation Menu ─────────────────────────────────────
         nav_display_options = [PAGES[k]["full_label"] for k in PAGE_ORDER]
-        current_display = PAGES[target_page_key]["full_label"]
 
-        # Synchronize radio widget session state so programmatic redirects work reliably without warning
-        if st.session_state.get("main_navigation_radio") != current_display:
-            st.session_state["main_navigation_radio"] = current_display
+        def on_nav_change():
+            chosen = st.session_state.get("main_navigation_radio")
+            for k in PAGE_ORDER:
+                if PAGES[k]["full_label"] == chosen:
+                    st.session_state["active_page_key"] = k
+                    st.session_state["last_synced_page"] = k
+                    st.query_params["page"] = k
+                    break
 
-        chosen_label = st.radio(
+        st.radio(
             "📌 เมนูหลัก (Workflow Navigation):",
             nav_display_options,
             key="main_navigation_radio",
+            on_change=on_nav_change,
         )
 
-        # Detect user navigation change
-        new_page_key = target_page_key
-        for k in PAGE_ORDER:
-            if PAGES[k]["full_label"] == chosen_label:
-                new_page_key = k
-                break
-
-        if new_page_key != target_page_key:
-            st.session_state["active_page_key"] = new_page_key
-            st.query_params["page"] = new_page_key
-            st.rerun()
+        # Reflect any navigation change in active page
+        target_page_key = st.session_state.get("active_page_key", target_page_key)
 
         # ── 4. Contextual Sidebar Filters (Only Rendered When Relevant) ───────
         start_date_val: Optional[date] = None
