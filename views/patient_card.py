@@ -150,21 +150,29 @@ def render_patient_card_view(
     if not target_pid:
         target_pid = "605"  # Default sample patient (Thyroid + Anemia + Metabolic)
 
+    # Keep widget state synchronized so external redirects and quick buttons reflect immediately
+    if "pic_search_input" not in st.session_state or st.session_state.get("pic_search_input") != target_pid:
+        st.session_state["pic_search_input"] = target_pid
+
     # ── 2. Top Search & Quick Case Selector ───────────────────────────────────
     search_col1, search_col2 = st.columns([3.5, 1.0])
     with search_col1:
         entered_pid = st.text_input(
             "🔍 ค้นหารหัส HN / ชื่อผู้ป่วย (เช่น 605, 6, 1, 25, HN6800605):",
-            value=target_pid,
             key="pic_search_input",
             placeholder="พิมพ์รหัส HN หรือ Patient ID...",
         )
+        if entered_pid and entered_pid.strip() and entered_pid.strip() != target_pid:
+            target_pid = entered_pid.strip()
+            st.session_state["search_patient_id"] = target_pid
+
     with search_col2:
         st.write("")
         st.write("")
         if st.button("🔍 ค้นหา", key="btn_search_pid", type="primary", use_container_width=True):
-            target_pid = entered_pid.strip()
+            target_pid = (entered_pid or target_pid).strip()
             st.session_state["search_patient_id"] = target_pid
+            st.session_state["pic_search_input"] = target_pid
             st.rerun()
 
     st.caption("⚡ เคสตัวอย่างสำหรับทดสอบระบบ (Quick Clinical Scenarios):")
@@ -172,47 +180,76 @@ def render_patient_card_view(
     with q_c1:
         if st.button("🧪 ID 6: ไต+ตับ (Bespoke)", key="btn_q_6", use_container_width=True):
             st.session_state["search_patient_id"] = "6"
+            st.session_state["pic_search_input"] = "6"
             st.rerun()
     with q_c2:
         if st.button("🦋 ID 605: ไทรอยด์+โลหิตจาง", key="btn_q_605", use_container_width=True):
             st.session_state["search_patient_id"] = "605"
+            st.session_state["pic_search_input"] = "605"
             st.rerun()
     with q_c3:
         if st.button("🫀 ID 1: ความดัน/เมตาบอลิก", key="btn_q_1", use_container_width=True):
             st.session_state["search_patient_id"] = "1"
+            st.session_state["pic_search_input"] = "1"
             st.rerun()
     with q_c4:
         if st.button("🌱 ID 25: สุขภาพทั่วไป (Routine)", key="btn_q_25", use_container_width=True):
             st.session_state["search_patient_id"] = "25"
+            st.session_state["pic_search_input"] = "25"
             st.rerun()
 
     sel_pid_str = target_pid.strip()
 
     # ── 3. Resolve Patient Data & Vitals ───────────────────────────────────────
-    age_val = 48.0
-    sys_val = 142.0
-    dia_bp_val = 88.0
-    bmi_val = 26.4
-    visits_val = 4.0
-    gender_code = 1.0  # Default female for 605
+    # Candidate lookup IDs (handling HN, prefixes, int, str)
+    clean_term = sel_pid_str
+    digits = re.findall(r"\d+", clean_term)
+    cand_ids = {clean_term, clean_term.lstrip("0"), clean_term.upper(), clean_term.lower()}
+    if digits:
+        cand_ids.add(digits[-1])
+        cand_ids.add(str(int(digits[-1])))
+        cand_ids.add(f"HN68{int(digits[-1]):05d}")
 
-    # Check summary_pts or dv if available
-    if summary_pts is not None and not summary_pts.empty:
-        if sel_pid_str in summary_pts.index:
-            pt_row = summary_pts.loc[sel_pid_str]
-            age_val = float(pt_row.get("age_at_visit", pt_row.get("age", age_val)))
-            sys_val = float(pt_row.get("systolic", pt_row.get("systolic_bp", sys_val)))
-            bmi_val = float(pt_row.get("bmi", bmi_val))
-            visits_val = float(pt_row.get("visits", visits_val))
-            gender_code = float(pt_row.get("gender_code", gender_code))
+    # Search in snap_df or avail_df
+    matched_pt: Optional[Dict[str, Any]] = None
+    target_source_df = avail_df if (avail_df is not None and not avail_df.empty) else snap_df
+    if target_source_df is not None and not target_source_df.empty:
+        mask = target_source_df["patient_id"].astype(str).str.strip().isin(cand_ids)
+        if "hn" in target_source_df.columns:
+            mask = mask | target_source_df["hn"].astype(str).str.strip().str.upper().isin({c.upper() for c in cand_ids})
+        matches = target_source_df[mask]
+        if not matches.empty:
+            matched_pt = matches.iloc[0].to_dict()
 
-    # Detect Chronic Conditions
-    _is_dm = False
-    _is_ht = bool(sys_val >= 140.0)
-    _is_dlp = False
+    # Base vitals with realistic defaults if entirely unmatched
+    if matched_pt is not None:
+        age_val = float(matched_pt.get("age", matched_pt.get("age_at_visit", 48.0)))
+        sys_val = float(matched_pt.get("sbp", matched_pt.get("systolic_bp", matched_pt.get("systolic", 120.0))))
+        dia_bp_val = float(matched_pt.get("dbp", matched_pt.get("diastolic_bp", matched_pt.get("diastolic", 80.0))))
+        bmi_val = float(matched_pt.get("bmi", 22.5))
+        visits_val = float(matched_pt.get("visits_last_2y", matched_pt.get("prior_visits_12m", matched_pt.get("prior_opd_visits_total", matched_pt.get("visits", 1.0)))))
+        g_raw = str(matched_pt.get("gender", ""))
+        g_code_raw = float(matched_pt.get("gender_code", 1.0 if g_raw in ["หญิง", "female", "F"] else 0.0))
+        gender_code = 1.0 if (g_raw in ["หญิง", "female", "F"] or g_code_raw > 0.5) else 0.0
+        gender_str = "หญิง" if gender_code > 0.5 else "ชาย"
+        _is_dm = bool(int(matched_pt.get("known_dx_dm", 0)) == 1 or float(matched_pt.get("hba1c", 5.0)) >= 6.5 or float(matched_pt.get("fbs", 90.0)) >= 126.0)
+        _is_ht = bool(int(matched_pt.get("known_dx_ht", 0)) == 1 or sys_val >= 140.0)
+        _is_dlp = bool(int(matched_pt.get("known_dx_dlp", 0)) == 1 or float(matched_pt.get("ldl", 100.0)) >= 160.0)
+    else:
+        age_val = 48.0
+        sys_val = 142.0
+        dia_bp_val = 88.0
+        bmi_val = 26.4
+        visits_val = 4.0
+        gender_code = 1.0
+        gender_str = "หญิง"
+        _is_dm = False
+        _is_ht = bool(sys_val >= 140.0)
+        _is_dlp = False
 
+    # Check encounter / visit diagnosis texts for additional context
     if dv is not None and not dv.empty and "patient_id" in dv.columns:
-        p_dv = dv[dv["patient_id"].astype(str).str.strip() == sel_pid_str]
+        p_dv = dv[dv["patient_id"].astype(str).str.strip().isin(cand_ids)]
         if not p_dv.empty:
             diag_str = " ".join(p_dv.get("diagnosis_text", pd.Series("")).dropna().astype(str).str.lower())
             if re.search(r"เบาหวาน|diabetes|e10|e11|e12|e13|e14", diag_str):

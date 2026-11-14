@@ -2712,8 +2712,11 @@ def render_lead_scoring_xai_dashboard(raw_clinical_df=None, prophet_model=None, 
 
                 st.caption("ℹ️ แถบสีแดง (+) บ่งชี้ว่าตัวแปรดังกล่าวเพิ่มความน่าจะเป็นในการซื้อแพ็กเกจ ขณะที่แถบสีน้ำเงิน (-) ลดความน่าจะเป็นเทียบกับฐานทั่วไป")
                 if st.button("👉 เปิดดูและปรับแต่งแพ็กเกจเฉพาะบุคคลใน Patient Insight Card", key=f"btn_nav_pic_{selected_cid}", type="primary", use_container_width=True):
-                    st.session_state["pending_nav_section"] = "Patient Insight Card"
+                    st.session_state["pending_nav_section"] = "patient"
                     st.session_state["search_patient_id"] = str(selected_cid)
+                    st.session_state["pic_search_input"] = str(selected_cid)
+                    st.session_state["active_page_key"] = "patient"
+                    st.query_params["page"] = "patient"
                     st.rerun()
 
         st.markdown("---")
@@ -2816,24 +2819,25 @@ def render_lead_scoring_xai_dashboard(raw_clinical_df=None, prophet_model=None, 
 def render_lead_generation_table(lead_table):
     """
     Renders Section 2: Lead Generation Table (Target Audience)
-    Moved from render_lead_scoring_xai_dashboard to be called separately.
+    Provides interactive filters, CSV export, and a direct 1-click connector
+    to open the selected patient profile in Patient Insight Card.
     """
-    st.markdown("### 📋 Section 2: Lead Generation Table — รายชื่อกลุ่มเป้าหมายสำหรับ Upsell")
+    st.markdown("### 📋 รายชื่อกลุ่มเป้าหมายสำหรับ Upsell (Lead Generation)")
     st.caption("ตารางจัดลำดับความพร้อมในการซื้อ (Propensity Score) เรียงจากมากไปน้อย พร้อม Current Journey Stage และ Top Driver เพื่อการติดต่อเชิงรุก")
 
     # Interactive Table Filters
     c_filt1, c_filt2, c_filt3, c_filt4 = st.columns([2, 2, 2, 2])
     with c_filt1:
-        min_score = st.slider("🎯 คะแนนความน่าจะเป็นขั้นต่ำ (%):", min_value=0.0, max_value=95.0, value=30.0, step=5.0)
+        min_score = st.slider("🎯 คะแนนความน่าจะเป็นขั้นต่ำ (%):", min_value=0.0, max_value=95.0, value=30.0, step=5.0, key="lead_tbl_slider_score")
     with c_filt2:
-        search_kw = st.text_input("🔍 ค้นหา Customer ID:", placeholder="เช่น HN-10005, 48840...")
+        search_kw = st.text_input("🔍 ค้นหา Customer ID:", placeholder="เช่น HN-10005, 48840...", key="lead_tbl_search_kw")
     with c_filt3:
         stage_options = ["ทั้งหมด (All Stages)"] + sorted(lead_table['Current Journey Stage'].unique().tolist())
-        selected_stage = st.selectbox("🔄 Current Journey Stage:", stage_options)
+        selected_stage = st.selectbox("🔄 Current Journey Stage:", stage_options, key="lead_tbl_stage_sel")
     with c_filt4:
         driver_roots = sorted(list({td.split(' ')[0] for td in lead_table['Top Driver']}))
         driver_options = ["ทั้งหมด (All Drivers)"] + driver_roots
-        selected_driver = st.selectbox("🩺 Top Driver (Reason to Buy):", driver_options)
+        selected_driver = st.selectbox("🩺 Top Driver (Reason to Buy):", driver_options, key="lead_tbl_driver_sel")
 
     # Filter logic
     filtered_leads = lead_table[lead_table['Propensity Score (%)'] >= min_score]
@@ -2850,6 +2854,28 @@ def render_lead_generation_table(lead_table):
     formatted_table['Expected Revenue (฿)'] = formatted_table['Expected Revenue (฿)'].apply(lambda x: f"฿{x:,.0f}")
     st.dataframe(formatted_table, use_container_width=True, hide_index=True, height=340)
 
+    # ── Interactive 1-Click Patient Connector ────────────────────────────────
+    lead_cids = filtered_leads['Customer ID'].astype(str).tolist()
+    if lead_cids:
+        col_c_sel, col_c_btn = st.columns([2.5, 1.5])
+        with col_c_sel:
+            target_lead_cid = st.selectbox(
+                "👉 เลือกผู้รับบริการจากตารางเพื่อเปิดดู Patient Insight Card:",
+                lead_cids,
+                key="sel_lead_table_direct_cid",
+                help="เลือกรายชื่อจากตารางเพื่อไปดูประวัติและจัดแพ็กเกจสุขภาพทันที"
+            )
+        with col_c_btn:
+            st.write("")
+            st.write("")
+            if st.button("🚀 เปิด Patient Insight Card ทันที", key="btn_jump_to_pic_from_tbl", type="primary", use_container_width=True):
+                st.session_state["pending_nav_section"] = "patient"
+                st.session_state["search_patient_id"] = str(target_lead_cid)
+                st.session_state["pic_search_input"] = str(target_lead_cid)
+                st.session_state["active_page_key"] = "patient"
+                st.query_params["page"] = "patient"
+                st.rerun()
+
     csv_data = display_df.to_csv(index=False).encode('utf-8-sig')
     today_str = pd.Timestamp.now().strftime('%Y%m%d')
     st.download_button(
@@ -2860,54 +2886,4 @@ def render_lead_generation_table(lead_table):
         help="ดาวน์โหลดไฟล์ CSV สำหรับส่งต่อให้ทีม Telesales, พยาบาลออกตรวจ หรือฝ่ายการตลาด"
     )
     st.markdown("---")
-
     return lead_table
-
-
-def render_lead_generation_table(lead_table):
-    """
-    Renders Section 2: Lead Generation Table (Target Audience)
-    Moved from render_lead_scoring_xai_dashboard to be called separately.
-    """
-    st.markdown("### 📋 รายชื่อกลุ่มเป้าหมายสำหรับ Upsell")
-    st.caption("ตารางจัดลำดับความพร้อมในการซื้อ (Propensity Score) เรียงจากมากไปน้อย พร้อม Current Journey Stage และ Top Driver เพื่อการติดต่อเชิงรุก")
-
-    # Interactive Table Filters
-    c_filt1, c_filt2, c_filt3, c_filt4 = st.columns([2, 2, 2, 2])
-    with c_filt1:
-        min_score = st.slider("🎯 คะแนนความน่าจะเป็นขั้นต่ำ (%):", min_value=0.0, max_value=95.0, value=30.0, step=5.0)
-    with c_filt2:
-        search_kw = st.text_input("🔍 ค้นหา Customer ID:", placeholder="เช่น HN-10005, 48840...")
-    with c_filt3:
-        stage_options = ["ทั้งหมด (All Stages)"] + sorted(lead_table['Current Journey Stage'].unique().tolist())
-        selected_stage = st.selectbox("🔄 Current Journey Stage:", stage_options)
-    with c_filt4:
-        driver_roots = sorted(list({td.split(' ')[0] for td in lead_table['Top Driver']}))
-        driver_options = ["ทั้งหมด (All Drivers)"] + driver_roots
-        selected_driver = st.selectbox("🩺 Top Driver (Reason to Buy):", driver_options)
-
-    # Filter logic
-    filtered_leads = lead_table[lead_table['Propensity Score (%)'] >= min_score]
-    if search_kw:
-        filtered_leads = filtered_leads[filtered_leads['Customer ID'].str.contains(search_kw.strip(), case=False, na=False)]
-    if selected_stage != "ทั้งหมด (All Stages)":
-        filtered_leads = filtered_leads[filtered_leads['Current Journey Stage'] == selected_stage]
-    if selected_driver != "ทั้งหมด (All Drivers)":
-        filtered_leads = filtered_leads[filtered_leads['Top Driver'].str.startswith(selected_driver)]
-
-    display_df = filtered_leads[['Customer ID', 'Current Journey Stage', 'Propensity Score (%)', 'Expected Revenue (฿)', 'Top Driver']].copy()
-    formatted_table = display_df.copy()
-    formatted_table['Propensity Score (%)'] = formatted_table['Propensity Score (%)'].apply(lambda x: f"{x:.1f}%")
-    formatted_table['Expected Revenue (฿)'] = formatted_table['Expected Revenue (฿)'].apply(lambda x: f"฿{x:,.0f}")
-    st.dataframe(formatted_table, use_container_width=True, hide_index=True, height=340)
-
-    csv_data = display_df.to_csv(index=False).encode('utf-8-sig')
-    today_str = pd.Timestamp.now().strftime('%Y%m%d')
-    st.download_button(
-        label="📥 ส่งออกตารางรายชื่อกลุ่มเป้าหมาย (CSV)",
-        data=csv_data,
-        file_name=f"lead_generation_target_audience_{today_str}.csv",
-        mime="text/csv",
-        help="ดาวน์โหลดไฟล์ CSV สำหรับส่งต่อให้ทีม Telesales, พยาบาลออกตรวจ หรือฝ่ายการตลาด"
-    )
-    st.markdown("---")

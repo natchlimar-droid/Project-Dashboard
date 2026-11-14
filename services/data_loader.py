@@ -221,12 +221,19 @@ def resolve_patient_lab_snapshot(
     snap_df, _, _ = load_synthetic_dataset()
     matched_row: Optional[Dict[str, Any]] = None
 
-    if not snap_df.empty:
-        # Match by patient_id or HN
-        cand_pids = [sel_pid_str, sel_pid_str.lstrip("0"), f"HN68{int(sel_pid_str):05d}" if sel_pid_str.isdigit() else ""]
+    clean_term = str(sel_pid_str or "").strip()
+    digits = re.findall(r"\d+", clean_term)
+
+    if not snap_df.empty and clean_term:
+        cand_pids = {clean_term, clean_term.lstrip("0"), clean_term.upper(), clean_term.lower()}
+        if digits:
+            cand_pids.add(digits[-1])
+            cand_pids.add(str(int(digits[-1])))
+            cand_pids.add(f"HN68{int(digits[-1]):05d}")
+
         mask = snap_df["patient_id"].astype(str).str.strip().isin(cand_pids)
         if "hn" in snap_df.columns:
-            mask = mask | snap_df["hn"].astype(str).str.strip().isin(cand_pids)
+            mask = mask | snap_df["hn"].astype(str).str.strip().str.upper().isin({c.upper() for c in cand_pids})
         
         matches = snap_df[mask]
         if not matches.empty:
@@ -234,12 +241,42 @@ def resolve_patient_lab_snapshot(
 
     if matched_row is not None:
         res = dict(matched_row)
+        res["patient_id"] = str(matched_row.get("patient_id", clean_term))
+        res["hn"] = str(matched_row.get("hn", f"HN68{int(res['patient_id']):05d}" if res["patient_id"].isdigit() else f"HN-{res['patient_id']}"))
         res["age"] = float(matched_row.get("age", age_val))
-        res["gender"] = str(matched_row.get("gender", "หญิง" if gender_code > 0.5 else "ชาย"))
+        g_raw = str(matched_row.get("gender", ""))
+        g_code_raw = float(matched_row.get("gender_code", gender_code))
+        res["gender"] = "หญิง" if (g_raw in ["หญิง", "female", "F"] or g_code_raw > 0.5) else "ชาย"
         res["bmi"] = float(matched_row.get("bmi", bmi_val))
-        res["systolic_bp"] = float(matched_row.get("sbp", sys_val))
-        res["diastolic_bp"] = float(matched_row.get("dbp", dia_bp_val))
-        res["visits_last_2y"] = int(matched_row.get("visits_last_2y", visits_val))
+        res["systolic_bp"] = float(matched_row.get("sbp", matched_row.get("systolic_bp", matched_row.get("systolic", sys_val))))
+        res["diastolic_bp"] = float(matched_row.get("dbp", matched_row.get("diastolic_bp", matched_row.get("diastolic", dia_bp_val))))
+        res["visits_last_2y"] = int(matched_row.get("visits_last_2y", matched_row.get("prior_visits_12m", matched_row.get("prior_opd_visits_total", visits_val))))
+        
+        # Comprehensive Lab Biomarkers (map parquet column names to UI keys)
+        res["fpg_mg_dl"] = float(matched_row.get("fpg_mg_dl", matched_row.get("fbs", 95.0)))
+        res["hba1c_pct"] = float(matched_row.get("hba1c_pct", matched_row.get("hba1c", 5.5)))
+        res["ldl_mg_dl"] = float(matched_row.get("ldl_mg_dl", matched_row.get("ldl", 110.0)))
+        res["hdl_mg_dl"] = float(matched_row.get("hdl_mg_dl", matched_row.get("hdl", 50.0)))
+        res["triglyceride_mg_dl"] = float(matched_row.get("triglyceride_mg_dl", matched_row.get("tg", 120.0)))
+        calc_tc = res["ldl_mg_dl"] + res["hdl_mg_dl"] + (res["triglyceride_mg_dl"] / 5.0)
+        res["cholesterol_mg_dl"] = float(matched_row.get("cholesterol_mg_dl", matched_row.get("tc", calc_tc)))
+        res["creatinine_mg_dl"] = float(matched_row.get("creatinine_mg_dl", matched_row.get("creatinine", 0.9)))
+        res["egfr"] = float(matched_row.get("egfr", 88.0))
+        res["uacr_mg_g"] = float(matched_row.get("uacr_mg_g", matched_row.get("uacr", 12.0)))
+        res["uric_acid_mg_dl"] = float(matched_row.get("uric_acid_mg_dl", matched_row.get("uric_acid", 5.5)))
+        res["alt_u_l"] = float(matched_row.get("alt_u_l", matched_row.get("alt", 25.0)))
+        res["ast_u_l"] = float(matched_row.get("ast_u_l", matched_row.get("ast", 22.0)))
+        res["tsh_miu_l"] = float(matched_row.get("tsh_miu_l", matched_row.get("tsh", 2.1)))
+        res["hb_g_dl"] = float(matched_row.get("hb_g_dl", matched_row.get("hb", 13.5)))
+        res["hct_pct"] = float(matched_row.get("hct_pct", matched_row.get("hct", 40.0)))
+        res["platelet_count_10_3_ul"] = float(matched_row.get("platelet_count_10_3_ul", 250.0))
+        res["wbc_10_3_ul"] = float(matched_row.get("wbc_10_3_ul", 6.8))
+
+        # Chronic diagnosis flags
+        res["known_dx_dm"] = int(matched_row.get("known_dx_dm", 1 if is_dm else 0))
+        res["known_dx_ht"] = int(matched_row.get("known_dx_ht", 1 if is_ht else 0))
+        res["known_dx_dlp"] = int(matched_row.get("known_dx_dlp", 1 if is_dlp else 0))
+        res["known_dx_ckd"] = int(matched_row.get("known_dx_ckd", 1 if res["egfr"] < 60 else 0))
         return res
 
     # Heuristic fallback based on clinical vitals & ICD flags

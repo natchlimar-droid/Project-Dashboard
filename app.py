@@ -255,12 +255,14 @@ def main() -> None:
         # ── 3. Role-Based Navigation Menu ─────────────────────────────────────
         nav_display_options = [PAGES[k]["full_label"] for k in PAGE_ORDER]
         current_display = PAGES[target_page_key]["full_label"]
-        current_idx = PAGE_ORDER.index(target_page_key)
+
+        # Synchronize radio widget session state so programmatic redirects work reliably without warning
+        if st.session_state.get("main_navigation_radio") != current_display:
+            st.session_state["main_navigation_radio"] = current_display
 
         chosen_label = st.radio(
             "📌 เมนูหลัก (Workflow Navigation):",
             nav_display_options,
-            index=current_idx,
             key="main_navigation_radio",
         )
 
@@ -415,7 +417,11 @@ def main() -> None:
         from services.data_loader import load_synthetic_dataset
         with st.spinner("กำลังโหลดแฟ้มประวัติสุขภาพผู้รับบริการ..."):
             snap_df, enc_df, _ = load_synthetic_dataset()
-            summary_pts = snap_df.set_index("patient_id") if not snap_df.empty else pd.DataFrame()
+            if not snap_df.empty:
+                summary_pts = snap_df.copy()
+                summary_pts.index = summary_pts["patient_id"].astype(str)
+            else:
+                summary_pts = pd.DataFrame()
 
         mod = importlib.import_module("views.patient_card")
         run_with_error_boundary(
