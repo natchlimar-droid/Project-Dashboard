@@ -2666,14 +2666,20 @@ def render_lead_scoring_xai_dashboard(raw_clinical_df=None, prophet_model=None, 
                     st.markdown(profile_card_html, unsafe_allow_html=True)
 
             with col_lead_plot:
-                if plt is not None and hasattr(shap, "plots") and hasattr(shap.plots, "waterfall"):
-                    fig_waterfall, ax_waterfall = plt.subplots(figsize=(6.5, 5.0))
-                    shap.plots.waterfall(single_explanation, show=False)
-                    plt.title(f"SHAP Waterfall Plot for {selected_cid} (Local Explainability)", fontsize=10, fontweight='bold', pad=10)
-                    plt.tight_layout()
-                    st.pyplot(fig_waterfall)
-                    plt.close(fig_waterfall)
-                else:
+                rendered_wf = False
+                if plt is not None and hasattr(shap, "plots") and hasattr(shap.plots, "waterfall") and callable(getattr(plt, "subplots", None)):
+                    try:
+                        fig_waterfall, ax_waterfall = plt.subplots(figsize=(6.5, 5.0))
+                        shap.plots.waterfall(single_explanation, show=False)
+                        plt.title(f"SHAP Waterfall Plot for {selected_cid} (Local Explainability)", fontsize=10, fontweight='bold', pad=10)
+                        plt.tight_layout()
+                        st.pyplot(fig_waterfall)
+                        plt.close(fig_waterfall)
+                        rendered_wf = True
+                    except Exception:
+                        rendered_wf = False
+
+                if not rendered_wf:
                     vals_arr = np.asarray(single_explanation.values, dtype=float)
                     f_names = list(single_explanation.feature_names)
                     f_data = np.asarray(single_explanation.data)
@@ -2723,22 +2729,28 @@ def render_lead_scoring_xai_dashboard(raw_clinical_df=None, prophet_model=None, 
         col_global_plot, col_global_summary = st.columns([3, 2])
 
         with col_global_plot:
-            if plt is not None and hasattr(shap, "summary_plot"):
-                fig_global, ax_global = plt.subplots(figsize=(8, 4.2))
-                shap.summary_plot(
-                    shap_vals_matrix,
-                    X_features,
-                    plot_type="bar",
-                    show=False,
-                    color="#0D9488"
-                )
-                plt.title("Top Global Features Driving Package Propensity (SHAP TreeExplainer)", fontsize=11, fontweight='bold', pad=12, color="#0F172A")
-                plt.xlabel("Mean |SHAP Value| (Average Impact on Prediction Magnitude)", fontsize=9, color="#475569")
-                plt.grid(axis='x', linestyle='--', alpha=0.5)
-                plt.tight_layout()
-                st.pyplot(fig_global)
-                plt.close(fig_global)
-            else:
+            rendered_shap_plot = False
+            if plt is not None and hasattr(shap, "summary_plot") and callable(getattr(plt, "subplots", None)):
+                try:
+                    fig_global, ax_global = plt.subplots(figsize=(8, 4.2))
+                    shap.summary_plot(
+                        shap_vals_matrix,
+                        X_features,
+                        plot_type="bar",
+                        show=False,
+                        color="#0D9488"
+                    )
+                    plt.title("Top Global Features Driving Package Propensity (SHAP TreeExplainer)", fontsize=11, fontweight='bold', pad=12, color="#0F172A")
+                    plt.xlabel("Mean |SHAP Value| (Average Impact on Prediction Magnitude)", fontsize=9, color="#475569")
+                    plt.grid(axis='x', linestyle='--', alpha=0.5)
+                    plt.tight_layout()
+                    st.pyplot(fig_global)
+                    plt.close(fig_global)
+                    rendered_shap_plot = True
+                except Exception:
+                    rendered_shap_plot = False
+
+            if not rendered_shap_plot:
                 mean_abs_shap = np.abs(np.asarray(shap_vals_matrix, dtype=float)).mean(axis=0)
                 feat_names = list(X_features.columns)
                 order = np.argsort(mean_abs_shap)

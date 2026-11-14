@@ -6,6 +6,7 @@ explains individual clinical drivers via SHAP, and models revenue uplift with Pr
 """
 from __future__ import annotations
 
+import textwrap
 from typing import Any, Optional
 
 import numpy as np
@@ -14,6 +15,15 @@ import streamlit as st
 
 from services.ml_engine import get_xgboost_model, get_cached_prophet_model
 from logic.lead_scoring_xai import render_lead_scoring_xai_dashboard
+
+
+def render_html(html_str: str) -> None:
+    """Renders HTML safely without Markdown code block indentation artifacts."""
+    dedented = textwrap.dedent(html_str).strip()
+    if hasattr(st, "html"):
+        st.html(dedented)
+    else:
+        st.markdown(dedented, unsafe_allow_html=True)
 
 
 def render_lead_intelligence_view(
@@ -28,7 +38,7 @@ def render_lead_intelligence_view(
     and business/clinical friendly terminology.
     """
     # ── Header Banner ──────────────────────────────────────────────────────────
-    st.markdown(
+    render_html(
         """
         <div style="background:linear-gradient(135deg,#0F766E 0%,#0D9488 100%); border-radius:14px; padding:22px 26px; color:white; margin-bottom:18px; box-shadow:0 4px 14px rgba(15,118,110,0.14);">
             <div style="font-size:0.78rem; font-weight:700; color:#CCFBF1; text-transform:uppercase; letter-spacing:0.06em;">
@@ -42,8 +52,7 @@ def render_lead_intelligence_view(
                 พร้อมประเมินโอกาสการตอบรับ (Propensity Score) และปัจจัยขับเคลื่อนทางการแพทย์เฉพาะรายบุคคล
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     # ── Contextual Filter Bar ──────────────────────────────────────────────────

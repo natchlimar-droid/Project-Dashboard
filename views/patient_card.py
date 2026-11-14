@@ -8,6 +8,7 @@ and clinical outreach talk tracks.
 from __future__ import annotations
 
 import re
+import textwrap
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -23,6 +24,15 @@ from logic.package_matching_v2 import (
 )
 from services.data_loader import resolve_patient_lab_snapshot, load_synthetic_dataset
 from services.ml_engine import predict_patient_propensity
+
+
+def render_html(html_str: str) -> None:
+    """Renders HTML safely without Markdown code block indentation artifacts."""
+    dedented = textwrap.dedent(html_str).strip()
+    if hasattr(st, "html"):
+        st.html(dedented)
+    else:
+        st.markdown(dedented, unsafe_allow_html=True)
 
 
 def render_patient_card_view(
@@ -52,7 +62,7 @@ def render_patient_card_view(
         target_pid = "6"  # Default sample patient (Renal + Hepatic)
 
     # ── 2. Top Header & Patient Selector ──────────────────────────────────────
-    st.markdown(
+    render_html(
         """
         <div style="background:linear-gradient(135deg,#0F766E 0%,#0D9488 100%); border-radius:14px; padding:20px 24px; color:white; margin-bottom:16px; box-shadow:0 4px 14px rgba(15,118,110,0.14);">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -66,8 +76,7 @@ def render_patient_card_view(
                 </div>
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     # ── Quick-Pick Sample Buttons ─────────────────────────────────────────────
@@ -192,7 +201,7 @@ def render_patient_card_view(
 
     # ── 5. Compact Hero Ribbon ────────────────────────────────────────────────
     hn_display = lab_snap.get("hn", f"HN68{int(sel_pid_str):05d}" if sel_pid_str.isdigit() else f"HN-{sel_pid_str}")
-    st.markdown(
+    render_html(
         f"""
         <div style="background:white; border:1px solid #E2E8F0; border-radius:14px; padding:16px 20px; margin-bottom:18px; box-shadow:0 2px 8px rgba(15,23,42,0.03); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
             <div>
@@ -214,8 +223,7 @@ def render_patient_card_view(
                 </span>
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     # ── 6. Three Clean Horizontal Tabs ────────────────────────────────────────
@@ -317,7 +325,7 @@ def render_patient_card_view(
         std_cov = pers_pkg.get("std_coverage_pct", 65)
 
         with comp_col1:
-            st.markdown(
+            render_html(
                 f"""
                 <div style="background:white; border:1px solid #E2E8F0; border-top:4px solid #0284C7; border-radius:14px; padding:18px; box-shadow:0 2px 8px rgba(15,23,42,0.03); height:100%;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -330,8 +338,7 @@ def render_patient_card_view(
                         ครอบคลุมปัญหาสุขภาพคนไข้: <b style="color:#D97706;">{std_cov}%</b>
                     </div>
                 </div>
-                """,
-                unsafe_allow_html=True,
+                """
             )
 
         # Tailor-Made Package
@@ -341,7 +348,7 @@ def render_patient_card_view(
         bespoke_reason = pers_pkg.get("gap_reason_th", "ประกอบชุดตรวจครอบคลุมทุกความเสี่ยงเฉพาะบุคคล")
 
         with comp_col2:
-            st.markdown(
+            render_html(
                 f"""
                 <div style="background:linear-gradient(180deg,#F0FDF4 0%,#FFFFFF 100%); border:2px solid #0F766E; border-top:4px solid #0F766E; border-radius:14px; padding:18px; box-shadow:0 4px 14px rgba(15,118,110,0.08); height:100%;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -358,8 +365,7 @@ def render_patient_card_view(
                         💡 {bespoke_reason}
                     </div>
                 </div>
-                """,
-                unsafe_allow_html=True,
+                """
             )
 
         st.markdown("---")
@@ -416,7 +422,7 @@ def render_patient_card_view(
             f"ที่รวมรายการตรวจที่จำเป็นโดยตรง ช่วยให้คุณได้รับการดูแลที่ตรงจุดและคุ้มค่าที่สุดครับ/ค่ะ"
         )
 
-        st.markdown(
+        render_html(
             f"""
             <div style="background:#F0FDF4; border:1px solid #86EFAC; border-left:5px solid #16A34A; border-radius:10px; padding:18px 22px; margin-bottom:16px;">
                 <div style="font-weight:800; color:#166534; font-size:1.02rem; margin-bottom:8px;">
@@ -426,18 +432,16 @@ def render_patient_card_view(
                     "{talk_track_text}"
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
-        st.markdown(
+        render_html(
             """
             <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:14px 18px; font-size:0.82rem; color:#475569; line-height:1.55;">
                 🛡️ <b>หลักจริยธรรมและการดูแลสุขภาพเชิงป้องกัน:</b><br>
                 • หลีกเลี่ยงการสร้างความตื่นตระหนก หรือใช้คำว่า <i>"ระบบ AI สั่งให้ซื้อ"</i><br>
                 • มุ่งเน้นการให้ความรู้ สร้างความเข้าใจในผล Lab และอธิบายถึงความสำคัญของการตรวจคัดกรองระยะแรกเริ่ม
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 

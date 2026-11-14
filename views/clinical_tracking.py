@@ -6,6 +6,7 @@ and visualizes population risk distribution across Tiers 1–4.
 """
 from __future__ import annotations
 
+import textwrap
 from typing import Any, Dict, Optional
 
 import pandas as pd
@@ -14,6 +15,15 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from logic.patient_segmentation import segment_population_dataframe
+
+
+def render_html(html_str: str) -> None:
+    """Renders HTML safely without Markdown code block indentation artifacts."""
+    dedented = textwrap.dedent(html_str).strip()
+    if hasattr(st, "html"):
+        st.html(dedented)
+    else:
+        st.markdown(dedented, unsafe_allow_html=True)
 
 
 def render_clinical_tracking_view(
@@ -28,7 +38,7 @@ def render_clinical_tracking_view(
         st.info("ℹ️ ไม่พบข้อมูลเวชระเบียนทางคลินิก กรุณาตรวจสอบการเชื่อมต่อข้อมูล")
         return
 
-    st.markdown(
+    render_html(
         """
         <div style="background:linear-gradient(135deg,#0F766E 0%,#15803D 100%);
                     border-radius:14px; padding:20px 24px; color:white; margin-bottom:18px; box-shadow:0 4px 14px rgba(15,118,110,0.12);">
@@ -42,8 +52,7 @@ def render_clinical_tracking_view(
                 ติดตามกลุ่มผู้ป่วยความดันโลหิตสูง, เบาหวาน, ไขมันในเลือดสูง และผู้ป่วยไต เพื่อป้องกันภาวะแทรกซ้อนรุนแรง
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     disease_tabs = st.tabs([

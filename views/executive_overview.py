@@ -6,6 +6,7 @@ and strategic revenue bridging for hospital boardrooms.
 """
 from __future__ import annotations
 
+import textwrap
 from datetime import datetime
 from typing import Any, Optional
 
@@ -13,6 +14,15 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+
+
+def render_html(html_str: str) -> None:
+    """Renders HTML safely without Markdown code block indentation artifacts."""
+    dedented = textwrap.dedent(html_str).strip()
+    if hasattr(st, "html"):
+        st.html(dedented)
+    else:
+        st.markdown(dedented, unsafe_allow_html=True)
 
 
 def get_clinic_brand_name() -> str:
@@ -83,7 +93,7 @@ def render_executive_system_overview(
 
     # ── 2. Executive Hero Banner ──────────────────────────────────────────────
     cname = get_clinic_brand_name()
-    st.markdown(
+    render_html(
         f"""
         <div style="background:linear-gradient(135deg,#0F172A 0%,#1E3A5F 55%,#0F766E 100%);
                     border-radius:16px; padding:26px 30px; margin-bottom:20px; box-shadow:0 4px 18px rgba(15,23,42,0.12);">
@@ -107,8 +117,7 @@ def render_executive_system_overview(
                 — มุ่งเน้นการแปลงผู้ป่วยเดิม ณ จุดสัมผัส OPD สู่รายได้ใหม่ส่วนเพิ่มด้วยต้นทุนการตลาด <b>CAC = ฿0 (Organic OPD Traffic)</b>
             </p>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     # ── 3. Interactive Conversion Scenario Sandbox ────────────────────────────
@@ -132,7 +141,7 @@ def render_executive_system_overview(
     total_projected_rev = net_rev + total_ai_uplift
 
     with sim_col2:
-        st.markdown(
+        render_html(
             f"""
             <div style="background:#F0FDF4; border:1.5px solid #86EFAC; border-radius:12px; padding:12px 16px; margin-top:10px;">
                 <div style="font-size:0.75rem; color:#166534; font-weight:600;">เป้าหมายคนไข้ใหม่ที่จะซื้อแพ็กเกจ:</div>
@@ -140,8 +149,7 @@ def render_executive_system_overview(
                     +{group_c_converted:,} คน <span style="font-size:0.82rem; font-weight:600; color:#166534;">(รายได้ +฿{uplift_group_c:,.0f})</span>
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
     # ── 4. Executive KPI Grid (Rendered via clean HTML grid) ──────────────────
@@ -200,7 +208,7 @@ def render_executive_system_overview(
         </div>
     </div>
     """
-    st.markdown(kpi_strip_html, unsafe_allow_html=True)
+    render_html(kpi_strip_html)
 
     st.write("")
 

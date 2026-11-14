@@ -849,7 +849,7 @@ def load_package_matcher_v2_bundle():
     return _CACHED_V2_BUNDLE
 
 
-def predict_patient_packages_v2(patient_row_or_df) -> Dict[str, object]:
+def predict_patient_packages_v2(patient_row_or_df, top_k: int = 3, **kwargs) -> Dict[str, object]:
     """
     Unified Lab-Aware Clinical + ML Package Matcher (v2).
     Accepts a single patient dict, pd.Series, or 1-row pd.DataFrame.
