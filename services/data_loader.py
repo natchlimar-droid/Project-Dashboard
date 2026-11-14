@@ -276,3 +276,4 @@ def resolve_patient_lab_snapshot(
         "wbc_10_3_ul": 6.8,
         "visits_last_2y": int(visits_val),
     }
+

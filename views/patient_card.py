@@ -440,3 +440,4 @@ def render_patient_card_view(
             """,
             unsafe_allow_html=True,
         )
+

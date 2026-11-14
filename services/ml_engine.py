@@ -171,3 +171,4 @@ def get_cached_prophet_model() -> Optional[Any]:
     except Exception as exc:
         logger.warning(f"Prophet model loading failed: {exc}")
         return None
+

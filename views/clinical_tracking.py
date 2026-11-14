@@ -112,3 +112,4 @@ def render_clinical_tracking_view(
         p2.metric("Tier 2: เสี่ยงเมตาบอลิก", f"{t_counts.get(2, 0):,} ครั้ง")
         p3.metric("Tier 3: โรคเรื้อรังระยะแรก", f"{t_counts.get(3, 0):,} ครั้ง")
         p4.metric("Tier 4: เชิงลึก/วิกฤต", f"{t_counts.get(4, 0):,} ครั้ง")
+
