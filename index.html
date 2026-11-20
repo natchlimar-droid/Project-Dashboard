@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏥 PrimeCare Wellness Clinic — Clinical Command Center & AI Package Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0F766E;
+      --primary-dark: #115E59;
+      --primary-light: #CCFBF1;
+      --primary-accent: #14B8A6;
+      --navy: #0F172A;
+      --navy-light: #1E293B;
+      --slate: #64748B;
+      --slate-light: #F8FAFC;
+      --border: #E2E8F0;
+      --card-bg: #FFFFFF;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.04);
+      --font-th: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-en: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-th);
+      background: #F8FAFC;
+      color: var(--navy);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Navigation Bar */
+    .navbar {
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: var(--shadow-sm);
+    }
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0.85rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+    }
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #0F766E, #0D9488);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      box-shadow: 0 2px 4px rgba(15, 118, 110, 0.25);
+    }
+    .brand-title {
+      font-family: var(--font-en);
+      font-weight: 800;
+      font-size: 1.25rem;
+      color: var(--navy);
+      letter-spacing: -0.02em;
+    }
+    .brand-sub {
+      font-size: 0.78rem;
+      color: var(--slate);
+      font-weight: 500;
+    }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .btn-github {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--navy);
+      background: #FFFFFF;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.88rem;
+      transition: all 0.2s ease;
+    }
+    .btn-github:hover {
+      background: #F1F5F9;
+      border-color: #CBD5E1;
+    }
+    .btn-launch {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 1.2rem;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #0F766E, #0D9488);
+      color: #FFFFFF;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.9rem;
+      box-shadow: 0 2px 8px rgba(15, 118, 110, 0.3);
+      transition: all 0.2s ease;
+    }
+    .btn-launch:hover {
+      background: linear-gradient(135deg, #115E59, #0F766E);
+      box-shadow: 0 4px 12px rgba(15, 118, 110, 0.4);
+      transform: translateY(-1px);
+    }
+
+    /* Hero Section */
+    .hero {
+      max-width: 1200px;
+      margin: 2.5rem auto 1.5rem auto;
+      padding: 0 1.5rem;
+      text-align: center;
+    }
+    .badge-clinical {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #ECFDF5;
+      border: 1px solid #A7F3D0;
+      color: #065F46;
+      font-size: 0.82rem;
+      font-weight: 700;
+      padding: 0.35rem 0.85rem;
+      border-radius: 999px;
+      margin-bottom: 1.25rem;
+    }
+    .hero-title {
+      font-size: 2.35rem;
+      font-weight: 800;
+      color: var(--navy);
+      line-height: 1.25;
+      margin-bottom: 1rem;
+    }
+    .hero-title span {
+      background: linear-gradient(135deg, #0F766E, #14B8A6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-desc {
+      font-size: 1.05rem;
+      color: var(--slate);
+      max-width: 780px;
+      margin: 0 auto 2rem auto;
+      line-height: 1.65;
+    }
+
+    /* Deploy Banner Card */
+    .deploy-box {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 960px;
+      margin: 0 auto 3rem auto;
+      box-shadow: var(--shadow-lg);
+      text-align: left;
+      position: relative;
+      overflow: hidden;
+    }
+    .deploy-box::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #0F766E, #14B8A6, #3B82F6);
+    }
+    .deploy-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid #F1F5F9;
+      padding-bottom: 1.25rem;
+    }
+    .deploy-status {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--navy);
+    }
+    .pulse-dot {
+      width: 10px;
+      height: 10px;
+      background: #10B981;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    .step-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .step-card {
+      background: #F8FAFC;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      background: var(--primary);
+      color: #FFFFFF;
+      border-radius: 50%;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+    .step-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--navy);
+      margin-bottom: 0.35rem;
+    }
+    .step-desc {
+      font-size: 0.82rem;
+      color: var(--slate);
+      line-height: 1.5;
+    }
+    .btn-deploy-main {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      width: 100%;
+      padding: 0.9rem 1.5rem;
+      background: linear-gradient(135deg, #FF4B4B, #E03535);
+      color: #FFFFFF;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 1.05rem;
+      text-decoration: none;
+      box-shadow: 0 4px 14px rgba(255, 75, 75, 0.35);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .btn-deploy-main:hover {
+      background: linear-gradient(135deg, #E03535, #C52222);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(255, 75, 75, 0.45);
+    }
+
+    /* Live Local Run Terminal Box */
+    .terminal-box {
+      background: #0F172A;
+      color: #E2E8F0;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      font-size: 0.85rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1rem;
+    }
+    .terminal-code {
+      color: #38BDF8;
+    }
+
+    /* Features Grid */
+    .features {
+      max-width: 1200px;
+      margin: 0 auto 4rem auto;
+      padding: 0 1.5rem;
+    }
+    .features-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .features-header h2 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--navy);
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+    }
+    .feature-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+    }
+    .feature-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+      border-color: #CBD5E1;
+    }
+    .feature-icon {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+    }
+    .feature-name {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--navy);
+      margin-bottom: 0.5rem;
+    }
+    .feature-text {
+      font-size: 0.85rem;
+      color: var(--slate);
+      line-height: 1.55;
+    }
+
+    /* Footer */
+    footer {
+      background: #FFFFFF;
+      border-top: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--slate);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="#" class="brand">
+        <div class="brand-icon">🏥</div>
+        <div>
+          <div class="brand-title">PrimeCare Wellness Clinic</div>
+          <div class="brand-sub">Clinical Command Center & AI Package Intelligence</div>
+        </div>
+      </a>
+      <div class="nav-actions">
+        <a href="https://github.com/natchlimar-droid/Project-Dashboard" target="_blank" class="btn-github">
+          <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+          </svg>
+          GitHub Repo
+        </a>
+        <a href="https://share.streamlit.io/deploy?repository=natchlimar-droid/Project-Dashboard&branch=main&mainModule=app.py" target="_blank" class="btn-launch">
+          🚀 เปิดใช้งานโปรแกรม
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="hero">
+    <div class="badge-clinical">
+      🩺 Clinical Intelligence & Multi-Task Package Matching v2
+    </div>
+    <h1 class="hero-title">
+      ระบบบริหารจัดการคลินิกอัจฉริยะ<br>
+      <span>Clinical Command Center & AI Intelligence</span>
+    </h1>
+    <p class="hero-desc">
+      แพลตฟอร์มวิเคราะห์ข้อมูลสุขภาพผู้ป่วยระดับโรงพยาบาลและคลินิกพรีเมียม 
+      ผสานพลังโมเดล AI Multi-Task Machine Learning, Explainable AI (SHAP), 
+      และ 3-Zone Clinical Hierarchy เพื่อการคัดกรองความเสี่ยงและจัดแพ็กเกจสุขภาพเฉพาะบุคคล (Tailor-Made)
+    </p>
+
+    <!-- Deploy Launcher Box -->
+    <section class="deploy-box">
+      <div class="deploy-header">
+        <div class="deploy-status">
+          <span class="pulse-dot"></span>
+          <span>ระบบพร้อมเปิดใช้งานออนไลน์ผ่าน Streamlit Cloud (ฟรี 100%)</span>
+        </div>
+        <span style="font-size:0.82rem; color:#64748B; background:#F1F5F9; padding:4px 10px; border-radius:6px; font-weight:600;">
+          Main Entrypoint: app.py
+        </span>
+      </div>
+
+      <div class="step-grid">
+        <div class="step-card">
+          <div class="step-num">1</div>
+          <div class="step-title">เชื่อมต่อ GitHub Repo</div>
+          <div class="step-desc">ระบบเชื่อมต่อกับ <b>natchlimar-droid/Project-Dashboard</b> สาขา <code>main</code> อัตโนมัติ</div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <div class="step-title">กดปุ่ม Deploy เพียง 1 คลิก</div>
+          <div class="step-desc">คลิกปุ่มสีแดงด้านล่าง จากนั้นกด <b>Deploy!</b> ใน Streamlit Community Cloud</div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <div class="step-title">เข้าใช้งานได้ทันที 24 ชม.</div>
+          <div class="step-desc">ได้รับ URL เว็บไซต์จริง (เช่น <code>*.streamlit.app</code>) พร้อมอัปเดตอัตโนมัติทุกครั้งที่ Git Push</div>
+        </div>
+      </div>
+
+      <a href="https://share.streamlit.io/deploy?repository=natchlimar-droid/Project-Dashboard&branch=main&mainModule=app.py" target="_blank" class="btn-deploy-main">
+        🚀 คลิกที่นี่เพื่อเปิดโปรแกรมผ่าน Streamlit Community Cloud (1-Click Launch)
+      </a>
+
+      <!-- Terminal for Local Execution -->
+      <div class="terminal-box">
+        <div>
+          <span style="color:#94A3B8;"># หรือรันบนเครื่องของคุณทันที (Local Command):</span><br>
+          <span class="terminal-code">streamlit run app.py</span>
+        </div>
+        <span style="color:#10B981; font-weight:700;">Local: Port 8501</span>
+      </div>
+    </section>
+
+    <!-- Key Modules Grid -->
+    <section class="features">
+      <div class="features-header">
+        <h2>4 โมดูลหลักในการบริหารคลินิกและดูแลผู้ป่วย</h2>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <div class="feature-name">1. ภาพรวมผู้บริหาร (Executive Overview)</div>
+          <div class="feature-text">
+            แดชบอร์ดสรุปรายได้ การจัดสรรแพ็กเกจสุขภาพ คัดกรองกลุ่มที่ไม่เคยซื้อ (Non-Buyers) และจำลองกลยุทธ์การขายด้วย AI
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎯</div>
+          <div class="feature-name">2. คัดกรองกลุ่มเป้าหมาย (AI Lead Intelligence)</div>
+          <div class="feature-text">
+            จัดลำดับความพร้อมในการตรวจ (Propensity Score) ด้วย XGBoost พร้อมวิเคราะห์ปัจจัยเชิงลึกรายบุคคลผ่าน SHAP Waterfall Plot
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">👤</div>
+          <div class="feature-name">3. ข้อมูลผู้รับบริการรายคน (Patient Insight Card)</div>
+          <div class="feature-text">
+            โครงสร้าง 3-Zone Clinical Hierarchy: คัดกรองระดับความรุนแรง (Triage), Visual Range Bar, และออกใบเสนอราคาแพ็กเกจเฉพาะคนไข้
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🩺</div>
+          <div class="feature-name">4. ศูนย์ติดตามโรคเรื้อรัง (Clinical Command Center)</div>
+          <div class="feature-text">
+            เฝ้าระวังกลุ่มผู้ป่วย NCDs (เบาหวาน, ความดัน, ไขมัน, ไตเสื่อม) ติดตามเป้าหมายผลแล็บ และป้องกันภาวะแทรกซ้อนเฉียบพลัน
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>© 2026 PrimeCare Wellness Clinic. All rights reserved. • Medical AI Architecture powered by Multi-Task ML & Streamlit.</p>
+  </footer>
+
+</body>
+</html>

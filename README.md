@@ -1,5 +1,7 @@
 # 🏥 PrimeCare Wellness Clinic — Clinical Command Center & AI Package Intelligence
 
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/deploy?repository=natchlimar-droid/Project-Dashboard&branch=main&mainModule=app.py)
+
 แดชบอร์ดวิเคราะห์ข้อมูลสุขภาพผู้ป่วย พร้อมระบบ **AI Multi-Task Package Matcher v2**, **Dynamic Personalized / Tailor-Made Package Builder (`CUSTOM_BESPOKE`)**, และ **Lead Scoring & Explainable AI (XAI)** สำหรับคัดกรองความเสี่ยงและแนะนำแพ็กเกจตรวจสุขภาพรายบุคคล
 
 ---
