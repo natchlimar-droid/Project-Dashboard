@@ -1,0 +1,30 @@
+{
+  "model_type": "XGBClassifier",
+  "training_data_source": "data/synthetic/train_patient_snapshot.parquet",
+  "total_synthetic_patients": 10000,
+  "buyers_count": 4172,
+  "non_buyers_count": 5828,
+  "feature_columns": [
+    "Age",
+    "Systolic BP",
+    "BMI",
+    "Prior Visits (12M)",
+    "Gender_Code",
+    "Diabetes (Dx)",
+    "Hypertension (Dx)",
+    "Dyslipidemia (Dx)"
+  ],
+  "test_roc_auc": 0.6202,
+  "feature_importances": {
+    "Age": 0.22235587239265442,
+    "Prior Visits (12M)": 0.14876072108745575,
+    "Hypertension (Dx)": 0.1246362030506134,
+    "Systolic BP": 0.12281756103038788,
+    "BMI": 0.10479246079921722,
+    "Dyslipidemia (Dx)": 0.09864256531000137,
+    "Gender_Code": 0.09481079131364822,
+    "Diabetes (Dx)": 0.08318386226892471
+  },
+  "trained_at": "2026-11-20T13:34:37.263768",
+  "notes": "Trained 100% on synthetic clinical star-schema dataset with zero real patient PHI."
+}

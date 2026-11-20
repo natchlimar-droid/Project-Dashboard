@@ -2389,10 +2389,11 @@ def render_lead_scoring_xai_dashboard(raw_clinical_df=None, prophet_model=None, 
             df_raw = None
 
     if df_raw is None and raw_clinical_df is not None and not raw_clinical_df.empty:
-        # 2nd Priority: ข้อมูล Clinical จริงที่โหลดมาจาก app.py (visits_cleaned.csv)
+        # 2nd Priority: ข้อมูล Clinical จาก app.py (synthetic EMR / fact_encounter)
         df_raw = raw_clinical_df.copy()
-        data_source_label = f"visits_cleaned.csv (Clinical EMR — {len(df_raw):,} แถว)"
-        st.sidebar.success(f"✅ ใช้ข้อมูลเวชระเบียนจริง ({len(df_raw):,} แถว)")
+        is_synth = "is_index_visit" in df_raw.columns or len(df_raw) <= 50000
+        data_source_label = f"Synthetic Clinical EMR ({len(df_raw):,} แถว)" if is_synth else f"Clinical EMR ({len(df_raw):,} แถว)"
+        st.sidebar.success(f"✅ ใช้ข้อมูลจำลองทางการแพทย์ ({len(df_raw):,} แถว)" if is_synth else f"✅ ใช้ข้อมูลเวชระเบียน ({len(df_raw):,} แถว)")
 
     if df_raw is None:
         # 3rd Priority: สแกนหาไฟล์ CSV จริงในโปรเจกต์
