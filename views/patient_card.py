@@ -26,6 +26,7 @@ from logic.package_matching_v2 import (
     MODULAR_TEST_CATALOG,
     ADDON_CATALOG,
 )
+from logic.package_service import build_patient_precision_quotation, UNIFIED_ADDON_CATALOG
 from services.data_loader import resolve_patient_lab_snapshot, load_synthetic_dataset
 from services.ml_engine import predict_patient_propensity
 
@@ -233,8 +234,9 @@ def render_patient_card_view(
         dia_bp_val = float(cached_lead.get("diastolic", 80.0 if sys_val < 130 else 85.0))
         bmi_val = float(cached_lead.get("bmi", 22.5))
         visits_val = float(cached_lead.get("visits_12m", 1.0))
-        gender_code = float(cached_lead.get("gender_code", 1.0))
-        gender_str = str(cached_lead.get("gender", "หญิง" if gender_code > 0.5 else "ชาย"))
+        gender_str = str(cached_lead.get("gender", "ชาย"))
+        gender_code = 1.0 if (gender_str in ["ชาย", "male", "M"] or float(cached_lead.get("gender_code", 1.0)) >= 0.5) else 0.0
+        gender_str = "ชาย" if gender_code >= 0.5 else "หญิง"
         _is_dm = bool(cached_lead.get("is_dm", False))
         _is_ht = bool(cached_lead.get("is_ht", sys_val >= 140.0))
         _is_dlp = bool(cached_lead.get("is_dlp", False))
@@ -259,10 +261,17 @@ def render_patient_card_view(
             dia_bp_val = float(matched_pt.get("dbp", matched_pt.get("diastolic_bp", matched_pt.get("diastolic", 80.0))))
             bmi_val = float(matched_pt.get("bmi", 22.5))
             visits_val = float(matched_pt.get("prior_visits_12m", matched_pt.get("visits_last_2y", matched_pt.get("prior_opd_visits_total", matched_pt.get("visits", 1.0)))))
-            g_raw = str(matched_pt.get("gender", ""))
-            g_code_raw = float(matched_pt.get("gender_code", 1.0 if g_raw in ["หญิง", "female", "F"] else 0.0))
-            gender_code = 1.0 if (g_raw in ["หญิง", "female", "F"] or g_code_raw > 0.5) else 0.0
-            gender_str = "หญิง" if gender_code > 0.5 else "ชาย"
+            g_raw = str(matched_pt.get("gender", "")).strip()
+            g_code_raw = float(matched_pt.get("gender_code", 1.0))
+            if "ชาย" in g_raw or g_raw.lower() in ["male", "m"]:
+                gender_str = "ชาย"
+                gender_code = 1.0
+            elif "หญิง" in g_raw or g_raw.lower() in ["female", "f"]:
+                gender_str = "หญิง"
+                gender_code = 0.0
+            else:
+                gender_str = "ชาย" if g_code_raw >= 0.5 else "หญิง"
+                gender_code = 1.0 if g_code_raw >= 0.5 else 0.0
             _is_dm = bool(int(matched_pt.get("known_dx_dm", 0)) == 1 or float(matched_pt.get("hba1c", 5.0)) >= 6.5 or float(matched_pt.get("fbs", 90.0)) >= 126.0)
             _is_ht = bool(int(matched_pt.get("known_dx_ht", 0)) == 1 or sys_val >= 140.0)
             _is_dlp = bool(int(matched_pt.get("known_dx_dlp", 0)) == 1 or float(matched_pt.get("ldl", 100.0)) >= 160.0)
@@ -273,7 +282,7 @@ def render_patient_card_view(
             bmi_val = 26.4
             visits_val = 4.0
             gender_code = 1.0
-            gender_str = "หญิง"
+            gender_str = "ชาย"
             _is_dm = False
             _is_ht = bool(sys_val >= 140.0)
             _is_dlp = False
@@ -308,8 +317,8 @@ def render_patient_card_view(
     bmi_val = float(lab_snap.get("bmi", bmi_val))
     sys_val = float(lab_snap.get("systolic_bp", sys_val))
     dia_bp_val = float(lab_snap.get("diastolic_bp", dia_bp_val))
-    gender_str = str(lab_snap.get("gender", "ชาย" if gender_code <= 0.5 else "หญิง"))
-    gender_code = 0.0 if gender_str == "ชาย" else 1.0
+    gender_str = str(lab_snap.get("gender", "ชาย" if gender_code >= 0.5 else "หญิง"))
+    gender_code = 1.0 if gender_str == "ชาย" else 0.0
 
     # ── 4. Calculate Propensity Score & Package Recommendations ──────────────
     propensity_score, shap_explanation, base_val = predict_patient_propensity(
@@ -434,36 +443,43 @@ def render_patient_card_view(
 
         col_pkg_left, col_pkg_right = st.columns([1.55, 1.05], gap="large")
 
-        # ── Primary & Tailor-Made Package Resolution ──
-        top_std = top3_packages[0] if top3_packages else {}
-        std_name = top_std.get("name") or top_std.get("short_name", "แพ็กเกจตรวจสุขภาพทั่วไป")
-        std_price = int(top_std.get("price", 2990))
-        std_fit = float(top_std.get("ml_score_pct", top_std.get("fit_pct", 92.0)))
-        bullets = top_std.get("bullets", [])
+        # ── Unified Precision Package Resolution & Quotation Engine ──
+        selected_primary_key = f"active_pkg_sel_{sel_pid_str}"
+        default_pkg_type = st.session_state.get(f"lead_prescribed_type_{sel_pid_str}", "bespoke" if needs_custom else "std")
+        current_pkg_type = st.session_state.get(selected_primary_key, default_pkg_type)
 
-        # Construct concise clinical indication
-        reason_parts = []
-        if _is_dlp or float(lab_snap.get("ldl", 100.0)) >= 160.0:
-            reason_parts.append("ประวัติไขมันในเลือดสูง (Dyslipidemia)")
-        if _is_ht or sys_val >= 140:
-            reason_parts.append(f"ความดันโลหิตสูง ({sys_val:.0f}/{dia_bp_val:.0f} mmHg)")
-        elif sys_val >= 130:
-            reason_parts.append(f"ความดันก้ำกึ่งเฝ้าระวัง ({sys_val:.0f} mmHg)")
-        if _is_dm or float(lab_snap.get("fbs", 90.0)) >= 126.0:
-            reason_parts.append("ระดับน้ำตาลในเลือด/เบาหวาน")
-        if bmi_val >= 25:
-            reason_parts.append(f"BMI {bmi_val:.1f} เกินเกณฑ์มาตรฐาน")
-        elif bmi_val >= 23:
-            reason_parts.append(f"น้ำหนักเกินเกณฑ์เล็กน้อย (BMI {bmi_val:.1f})")
+        selected_addons_key = f"addons_multisel_{sel_pid_str}"
+        if selected_addons_key not in st.session_state and f"lead_prescribed_addons_{sel_pid_str}" in st.session_state:
+            st.session_state[selected_addons_key] = st.session_state[f"lead_prescribed_addons_{sel_pid_str}"]
+        user_addons = st.session_state.get(selected_addons_key, None)
 
-        if float(lab_snap.get("egfr", 90)) < 60:
-            reason_parts.append("ค่าการทำงานของไต eGFR ลดลง")
-        if float(lab_snap.get("alt_u_l", 20)) > 40:
-            reason_parts.append("เอนไซม์ตับ ALT สูง")
-        if float(lab_snap.get("tsh_miu_l", 2.0)) > 4.5:
-            reason_parts.append("ฮอร์โมนไทรอยด์ TSH ผิดปกติ")
+        quote = build_patient_precision_quotation(
+            lab_snap=lab_snap,
+            selected_pkg_type=current_pkg_type,
+            selected_addon_keys=user_addons,
+        )
 
-        clinical_reason_text = " + ".join(reason_parts) if reason_parts else "คัดกรองสุขภาพประจำปีตามช่วงอายุและสรีรวิทยา"
+        std_pkg = quote["std_package"]
+        std_name = std_pkg["name"]
+        std_price = std_pkg["price"]
+        std_fit = std_pkg["fit_pct"]
+        bullets = std_pkg["bullets"]
+        clinical_reason_text = quote["clinical_reason_text"]
+
+        bespoke_pkg = quote["bespoke_package"]
+        bespoke_name = bespoke_pkg["name"]
+        bespoke_price = bespoke_pkg["price"]
+        bespoke_full = bespoke_pkg["full_price"]
+        bespoke_disc = bespoke_pkg["discount_pct"]
+        bespoke_reason = bespoke_pkg["reason"]
+
+        active_primary = quote["active_primary"]
+        active_primary_name = quote["active_primary_name"]
+        active_primary_price = quote["active_primary_price"]
+        active_addons = quote["active_addons"]
+        gross_total = quote["gross_total"]
+        discount_amount = quote["discount_amount"]
+        net_payable = quote["net_payable"]
 
         with col_pkg_left:
             # ── Card 1: Best Match Package ──
@@ -496,8 +512,7 @@ def render_patient_card_view(
                 if st.button("📋 ดูรายการตรวจ", key=f"btn_view_bullets_{sel_pid_str}", use_container_width=True):
                     show_package_details_dialog(std_name, std_price, bullets, clinical_reason_text)
             with btn_col2:
-                selected_primary_key = f"active_pkg_sel_{sel_pid_str}"
-                is_selected = st.session_state.get(selected_primary_key, "std") == "std"
+                is_selected = (current_pkg_type == "std")
                 if st.button(
                     "✅ เลือกแพ็กเกจนี้" if not is_selected else "✔️ แพ็กเกจที่เลือกอยู่",
                     key=f"btn_choose_std_{sel_pid_str}",
@@ -509,12 +524,6 @@ def render_patient_card_view(
 
             # ── Card 2: Bespoke Tailor-Made Option (If Gap Detected or ID 6) ──
             if needs_custom or sel_pid_str == "6" or pers_pkg:
-                bespoke_name = pers_pkg.get("name", "แพ็กเกจตรวจเฉพาะบุคคล (Bespoke Modular)")
-                bespoke_price = int(pers_pkg.get("price", 4800))
-                bespoke_full = int(pers_pkg.get("full_price", 5800))
-                bespoke_disc = int(pers_pkg.get("discount_pct", 18))
-                bespoke_reason = pers_pkg.get("gap_reason_th", "ประกอบชุดตรวจครอบคลุมทุกความเสี่ยงเฉพาะบุคคล 100%")
-
                 st.write("")
                 render_html(
                     f"""
@@ -538,7 +547,13 @@ def render_patient_card_view(
                     </div>
                     """
                 )
-                if st.button("🧬 สลับมาใช้แพ็กเกจเฉพาะบุคคลนี้", key=f"btn_switch_bespoke_{sel_pid_str}", use_container_width=True):
+                is_bespoke_selected = (current_pkg_type == "bespoke")
+                if st.button(
+                    "🧬 สลับมาใช้แพ็กเกจเฉพาะบุคคลนี้" if not is_bespoke_selected else "✔️ แพ็กเกจเฉพาะบุคคลที่เลือกอยู่",
+                    key=f"btn_switch_bespoke_{sel_pid_str}",
+                    type="primary" if is_bespoke_selected else "secondary",
+                    use_container_width=True,
+                ):
                     st.session_state[selected_primary_key] = "bespoke"
                     st.rerun()
 
@@ -548,43 +563,20 @@ def render_patient_card_view(
             st.markdown("##### ➕ รายการตรวจเสริมที่แนะนำเพิ่มเติม (Add-on Modules)")
             st.caption("สามารถเลือกเพิ่มรายการตรวจเฉพาะทางที่ตรงกับความกังวลของผู้ป่วย เพื่อรวมในใบเสนอราคาฉบับเดียวกัน")
 
-            addon_options = {
-                "ADDON_US_ABDOMEN": {"name": "อัลตราซาวด์ช่องท้องส่วนบนและล่าง (Ultrasound Whole Abdomen)", "price": 990, "organ": "ตับ/ไต/ถุงน้ำดี"},
-                "ADDON_EKG": {"name": "ตรวจคลื่นไฟฟ้าหัวใจ (EKG 12-Leads)", "price": 450, "organ": "หัวใจและหลอดเลือด"},
-                "ADDON_RENAL": {"name": "ตรวจการทำงานของไตและโปรตีนรั่ว (Creatinine + eGFR + UACR)", "price": 650, "organ": "ไตและระบบขับถ่าย"},
-                "ADDON_THYROID": {"name": "ตรวจสมดุลฮอร์โมนไทรอยด์ (TSH + Free T4)", "price": 750, "organ": "ต่อมไร้ท่อ"},
-                "ADDON_MAMMOGRAM": {"name": "ดิจิทัลแมมโมแกรมและอัลตราซาวด์เต้านม (Digital Mammogram)", "price": 2500, "organ": "คัดกรองเต้านม"},
-                "ADDON_BONE": {"name": "ตรวจความหนาแน่นมวลกระดูก (DEXA Bone Density Scan)", "price": 1200, "organ": "กระดูกและข้อ"},
-            }
+            addon_candidates = list(UNIFIED_ADDON_CATALOG.keys())
+            rec_addon_set = {a["code"] for a in quote["catalog_addons"] if a["is_recommended"]}
 
-            # Smart defaults based on patient profile
-            default_addons = []
-            if bmi_val >= 25 or _is_ht or sys_val >= 140:
-                default_addons.append("ADDON_US_ABDOMEN")
-            if age_val >= 45:
-                default_addons.append("ADDON_EKG")
+            if selected_addons_key not in st.session_state:
+                st.session_state[selected_addons_key] = quote["active_addon_keys"]
 
             selected_addon_keys = st.multiselect(
                 "เลือกรายการตรวจเสริมที่ต้องการรวมในใบเสนอราคา:",
-                options=list(addon_options.keys()),
-                default=[k for k in default_addons if k in addon_options],
-                format_func=lambda k: f"{addon_options[k]['name']} (+฿{addon_options[k]['price']:,})",
-                key=f"addons_multisel_{sel_pid_str}",
+                options=addon_candidates,
+                format_func=lambda k: f"{UNIFIED_ADDON_CATALOG[k]['name']} (+฿{UNIFIED_ADDON_CATALOG[k]['price']:,}){' ⭐ แนะนำ' if k in rec_addon_set else ''}",
+                key=selected_addons_key,
             )
 
         # ── Quotation Summary (Right Column) ──
-        is_bespoke_active = st.session_state.get(selected_primary_key, "std") == "bespoke"
-        active_primary_name = bespoke_name if is_bespoke_active else std_name
-        active_primary_price = bespoke_price if is_bespoke_active else std_price
-
-        active_addons = [addon_options[k] for k in selected_addon_keys if k in addon_options]
-        addons_total = sum(a["price"] for a in active_addons)
-        gross_total = active_primary_price + addons_total
-
-        # Bundle discount: 10% discount on entire package if 2 or more add-ons are chosen
-        discount_amount = int(gross_total * 0.10) if len(active_addons) >= 2 else (int(gross_total * 0.05) if len(active_addons) == 1 else 0)
-        net_payable = gross_total - discount_amount
-
         with col_pkg_right:
             render_html(
                 f"""
@@ -734,8 +726,19 @@ def render_patient_card_view(
         with col_xai_plot:
             st.markdown("##### 📊 ปัจจัยที่ส่งผลต่อคะแนน (Clinical Drivers)")
             
-            f_names: List[str] = []
+            f_names: List[str] = [
+                "Age", "Systolic BP", "BMI", "Prior Visits (12M)",
+                "Gender_Code", "Diabetes (Dx)", "Hypertension (Dx)", "Dyslipidemia (Dx)"
+            ]
             vals_arr: Optional[np.ndarray] = None
+            base_v = getattr(shap_explanation, "base_values", -0.33)
+            if isinstance(base_v, (list, np.ndarray)):
+                base_v = float(base_v[0]) if len(base_v) > 0 else -0.33
+            else:
+                try:
+                    base_v = float(base_v)
+                except Exception:
+                    base_v = -0.33
 
             if shap_explanation is not None and hasattr(shap_explanation, "values"):
                 raw_vals = np.asarray(shap_explanation.values, dtype=float)
@@ -743,27 +746,47 @@ def render_patient_card_view(
                     raw_vals = raw_vals[0]
                 if raw_vals.size > 0:
                     vals_arr = raw_vals
-                    f_names = list(getattr(shap_explanation, "feature_names", []))
+                    if hasattr(shap_explanation, "feature_names") and shap_explanation.feature_names:
+                        f_names = list(shap_explanation.feature_names)
 
             # Guaranteed fallback attribution from patient's clinical profile
-            if vals_arr is None or len(f_names) == 0:
+            if vals_arr is None or len(vals_arr) != len(f_names):
                 f_names = [
                     "Dyslipidemia (Dx)", "Age", "Systolic BP", "BMI",
                     "Hypertension (Dx)", "Diabetes (Dx)", "Prior Visits (12M)", "Gender_Code"
                 ]
                 vals_arr = np.array([
-                    16.39 if _is_dlp else 0.0,
-                    (age_val - 35.0) * 0.17,
-                    (sys_val - 120.0) * 0.08,
-                    (bmi_val - 22.0) * 0.18,
-                    8.20 if _is_ht else 0.0,
-                    12.50 if _is_dm else 0.0,
-                    (visits_val - 1.0) * 0.12,
-                    0.0,
+                    0.15 if _is_dlp else -0.05,
+                    (age_val - 45.0) * 0.015,
+                    (sys_val - 120.0) * 0.003,
+                    (bmi_val - 23.0) * 0.012,
+                    0.08 if _is_ht else -0.02,
+                    0.12 if _is_dm else -0.01,
+                    (visits_val - 1.0) * 0.04,
+                    0.005 if gender_code > 0.5 else -0.005,
                 ], dtype=float)
 
+            feat_val_map = {
+                "Age": age_val,
+                "Systolic BP": sys_val,
+                "BMI": bmi_val,
+                "Prior Visits (12M)": visits_val,
+                "Gender_Code": gender_code,
+                "Diabetes (Dx)": 1.0 if _is_dm else 0.0,
+                "Hypertension (Dx)": 1.0 if _is_ht else 0.0,
+                "Dyslipidemia (Dx)": 1.0 if _is_dlp else 0.0,
+            }
+
             order_w = np.argsort(np.abs(vals_arr))
-            labels_w = [f_names[i] for i in order_w]
+            labels_w = []
+            for i in order_w:
+                fn = f_names[i]
+                fv = feat_val_map.get(fn, None)
+                if fv is not None:
+                    labels_w.append(f"{fn} = {fv:.1f}" if isinstance(fv, (int, float, np.floating)) else f"{fn} = {fv}")
+                else:
+                    labels_w.append(fn)
+
             shap_w = [float(vals_arr[i]) for i in order_w]
             colors_w = ["#EF4444" if v >= 0 else "#3B82F6" for v in shap_w]
 
@@ -777,12 +800,12 @@ def render_patient_card_view(
                 hovertemplate="<b>%{y}</b><br>SHAP Contribution: <b>%{x:+.4f}</b><extra></extra>",
             ))
             fig_shap.update_layout(
-                title=dict(text=f"<b>SHAP Waterfall Attribution for {hn_display}</b>", font=dict(size=12, color="#0F172A")),
+                title=dict(text=f"<b>SHAP Waterfall Attribution for {hn_display} (Base={base_v:.2f})</b>", font=dict(size=12, color="#0F172A")),
                 xaxis=dict(title="SHAP Contribution (Log-Odds Impact)", gridcolor="#E2E8F0", zeroline=True, zerolinecolor="#94A3B8"),
                 yaxis=dict(title=""),
                 plot_bgcolor="white",
                 paper_bgcolor="white",
-                height=320,
+                height=340,
                 margin=dict(l=10, r=45, t=35, b=25),
             )
             st.plotly_chart(fig_shap, use_container_width=True)

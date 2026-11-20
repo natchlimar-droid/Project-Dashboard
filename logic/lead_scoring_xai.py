@@ -660,9 +660,9 @@ def align_features_for_model(df_target, model):
         'visits':       ['Prior Visits (12M)', 'prior_visits_12m', 'total_visits_history', 'visit_count',
                          'visits', 'prior_visits', 'visit_frequency'],
         'gender':       ['Gender_Code', 'gender_code', 'gender', 'sex', 'เพศ'],
-        'diabetes':     ['Diabetes (Dx)', 'is_dm', 'diabetes', 'dm', 'เบาหวาน'],
-        'hypertension': ['Hypertension (Dx)', 'is_ht', 'hypertension', 'ht', 'ความดัน'],
-        'dyslipidemia': ['Dyslipidemia (Dx)', 'is_dlp', 'dyslipidemia', 'dlp', 'lipid', 'cholesterol_dx', 'ไขมัน'],
+        'diabetes':     ['Diabetes (Dx)', 'known_dx_dm', 'is_dm', 'diabetes', 'dm', 'เบาหวาน'],
+        'hypertension': ['Hypertension (Dx)', 'known_dx_ht', 'is_ht', 'hypertension', 'ht', 'ความดัน'],
+        'dyslipidemia': ['Dyslipidemia (Dx)', 'known_dx_dlp', 'is_dlp', 'dyslipidemia', 'dlp', 'lipid', 'cholesterol_dx', 'ไขมัน'],
         'glucose':      ['Fasting Glucose', 'fasting_glucose', 'glucose', 'fbs', 'blood_glucose'],
         'cholesterol':  ['Total Cholesterol', 'total_cholesterol', 'cholesterol', 'chol'],
     }
@@ -689,11 +689,17 @@ def align_features_for_model(df_target, model):
             matched_log[feat] = matched_col
             col_data = df_target[matched_col]
             if col_data.dtype == 'object':
-                # Encode gender: ช/ญ (Thai) or m/f (English)
-                X[feat] = col_data.apply(
-                    lambda x: 1.0 if str(x).strip().lower() in ['ชาย', 'ช', 'm', 'male', '1'] else
-                              (0.0 if str(x).strip().lower() in ['หญิง', 'ญ', 'f', 'female', '0'] else np.nan)
-                )
+                if 'gender' in feat.lower():
+                    # Encode gender: ชาย (Male=1.0), หญิง (Female=0.0)
+                    X[feat] = col_data.apply(
+                        lambda x: 1.0 if str(x).strip().lower() in ['ชาย', 'ช', 'm', 'male', '1', '1.0'] else
+                                  (0.0 if str(x).strip().lower() in ['หญิง', 'ญ', 'f', 'female', '0', '0.0'] else np.nan)
+                    )
+                else:
+                    X[feat] = col_data.apply(
+                        lambda x: 1.0 if str(x).strip().lower() in ['true', 'yes', 'positive', 'มีประวัติ', '1', '1.0'] else
+                                  (0.0 if str(x).strip().lower() in ['false', 'no', 'negative', 'ไม่พบประวัติ', '0', '0.0'] else pd.to_numeric(x, errors='coerce'))
+                    )
             else:
                 X[feat] = pd.to_numeric(col_data, errors='coerce')
         else:
@@ -2571,50 +2577,35 @@ def render_lead_scoring_xai_dashboard(raw_clinical_df=None, prophet_model=None, 
             bmi_val = _feat("BMI", 22.0)
             visits_val = _feat("Prior Visits (12M)", 1.0)
 
-            # Compute Standard + Personalized Package match for this customer
-            pkg_recommendation_html = ""
-            try:
-                from logic.package_matching_v2 import predict_patient_packages_v2
-                from services.data_loader import resolve_patient_lab_snapshot
-                raw_row = target_audience_df.iloc[orig_row_idx].to_dict()
-                gender_c = 1.0 if str(gender_str) in ["หญิง", "female", "F"] else 0.0
-                patient_snap = resolve_patient_lab_snapshot(
-                    sel_pid_str=str(selected_cid),
-                    age_val=float(age_val),
-                    gender_code=gender_c,
-                    bmi_val=float(bmi_val),
-                    sys_val=float(sys_val),
-                    dia_bp_val=float(raw_row.get("diastolic_bp", 80.0) or (80.0 if sys_val < 130 else 85.0)),
-                    is_dm=bool(_feat("Diabetes (Dx)") >= 0.5),
-                    is_ht=bool(_feat("Hypertension (Dx)") >= 0.5 or sys_val >= 140.0),
-                    is_dlp=bool(_feat("Dyslipidemia (Dx)") >= 0.5),
-                    visits_val=float(visits_val),
-                )
-                v2_res = predict_patient_packages_v2(patient_snap)
-                top3_list = v2_res.get("top3_packages", [])
-                top_std = top3_list[0] if top3_list else None
-                pers_pkg = v2_res.get("personalized_package", {})
-                needs_custom = bool(v2_res.get("needs_custom_package", False))
-                if needs_custom and pers_pkg:
-                    pkg_recommendation_html = (
-                        f'<div style="background:linear-gradient(135deg,#ECFDF5 0%,#EFF6FF 100%); border:1px solid #6EE7B7; border-radius:8px; padding:10px 12px; margin-bottom:10px;">'
-                        f'<div style="font-size:0.73rem; font-weight:800; color:#047857;">🧬 แนะนำแพ็กเกจเฉพาะบุคคล (Tailor-Made)</div>'
-                        f'<div style="font-size:0.86rem; font-weight:800; color:#0F172A; margin-top:2px;">{pers_pkg.get("name","")}</div>'
-                        f'<div style="font-size:0.76rem; color:#059669; font-weight:700; margin-top:2px;">฿{pers_pkg.get("price",0):,} (ประหยัด {pers_pkg.get("discount_pct",15)}% · ครอบคลุมความเสี่ยง 100%)</div>'
-                        f'</div>'
-                    )
-                elif top_std:
-                    pkg_recommendation_html = (
-                        f'<div style="background:#F0F9FF; border:1px solid #BAE6FD; border-radius:8px; padding:10px 12px; margin-bottom:10px;">'
-                        f'<div style="font-size:0.73rem; font-weight:800; color:#0369A1;">📦 แพ็กเกจมาตรฐานอันดับ 1 ({top_std.get("fit_pct",0):.1f}% Match)</div>'
-                        f'<div style="font-size:0.86rem; font-weight:800; color:#0F172A; margin-top:2px;">{top_std.get("name","")} (฿{top_std.get("price",0):,})</div>'
-                        f'<div style="font-size:0.74rem; color:#475569; margin-top:2px;">หรือเลือกจัดชุดตรวจเฉพาะบุคคลในราคา ฿{pers_pkg.get("price",0):,}</div>'
-                        f'</div>'
-                    )
-            except Exception:
-                pkg_recommendation_html = ""
+            # ── Unified Precision Package Quotation Engine ──
+            from logic.package_service import build_patient_precision_quotation, UNIFIED_ADDON_CATALOG
+            from services.data_loader import resolve_patient_lab_snapshot
 
-            col_lead_info, col_lead_plot = st.columns([1.15, 1.05])
+            raw_row = target_audience_df.iloc[orig_row_idx].to_dict()
+            gender_raw = str(raw_row.get("gender", raw_row.get("gender_clean", "ชาย"))).strip()
+            gender_c = 1.0 if (gender_raw in ["ชาย", "male", "M"] or _feat("Gender_Code", 1.0) >= 0.5) else 0.0
+            gender_str = "ชาย" if gender_c >= 0.5 else "หญิง"
+            patient_snap = resolve_patient_lab_snapshot(
+                sel_pid_str=str(selected_cid),
+                age_val=float(age_val),
+                gender_code=gender_c,
+                bmi_val=float(bmi_val),
+                sys_val=float(sys_val),
+                dia_bp_val=float(raw_row.get("diastolic_bp", 80.0) or (80.0 if sys_val < 130 else 85.0)),
+                is_dm=bool(_feat("Diabetes (Dx)") >= 0.5),
+                is_ht=bool(_feat("Hypertension (Dx)") >= 0.5 or sys_val >= 140.0),
+                is_dlp=bool(_feat("Dyslipidemia (Dx)") >= 0.5),
+                visits_val=float(visits_val),
+            )
+
+            # Pre-calculate base quote to get smart defaults
+            base_quote = build_patient_precision_quotation(
+                lab_snap=patient_snap,
+                selected_pkg_type="std",
+                selected_addon_keys=None,
+            )
+
+            col_lead_info, col_lead_plot = st.columns([1.18, 1.02])
 
             with col_lead_info:
                 score_color = "#10B981" if lead_score >= 60 else ("#F59E0B" if lead_score >= 40 else "#64748B")
@@ -2637,34 +2628,98 @@ def render_lead_scoring_xai_dashboard(raw_clinical_df=None, prophet_model=None, 
 
                 joined_clinical_attrs = "<br>".join(clinical_attrs_html)
 
-                profile_card_html = (
-                    f'<div style="background: white; border: 1px solid #E2E8F0; border-radius: 14px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">'
+                # Customer Profile Ribbon
+                profile_header_html = (
+                    f'<div style="background: white; border: 1px solid #E2E8F0; border-radius: 14px; padding: 16px 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 12px;">'
                     f'<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">'
-                    f'<div><div style="font-size: 0.76rem; font-weight: 700; color: #64748B; text-transform: uppercase;">Customer Profile</div>'
-                    f'<div style="font-size: 1.35rem; font-weight: 800; color: #0F172A;">{selected_cid}</div></div>'
-                    f'<span style="background: {score_color}15; color: {score_color}; font-size: 0.76rem; font-weight: 700; padding: 4px 10px; border-radius: 999px;">'
+                    f'<div><div style="font-size: 0.74rem; font-weight: 700; color: #64748B; text-transform: uppercase;">Customer Profile</div>'
+                    f'<div style="font-size: 1.3rem; font-weight: 800; color: #0F172A;">{selected_cid}</div></div>'
+                    f'<span style="background: {score_color}15; color: {score_color}; font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 999px;">'
                     f'{priority_badge}'
                     f'</span>'
                     f'</div>'
-                    f'<div style="background: #F8FAFC; border-radius: 10px; padding: 12px; margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">'
+                    f'<div style="background: #F8FAFC; border-radius: 10px; padding: 12px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">'
                     f'<div><div style="font-size: 0.75rem; color: #64748B;">Propensity Score (โอกาสซื้อแพ็กเกจ)</div>'
                     f'<div style="font-size: 0.76rem; color: #475569; margin-top: 2px;"><b>Top Driver:</b> <span style="color: #0F52BA; font-weight: 700;">{lead_top_driver}</span></div></div>'
-                    f'<div style="font-size: 1.75rem; font-weight: 800; color: {score_color};">{lead_score:.1f}%</div>'
+                    f'<div style="font-size: 1.7rem; font-weight: 800; color: {score_color};">{lead_score:.1f}%</div>'
                     f'</div>'
-                    f'{pkg_recommendation_html}'
                     f'<div style="font-size: 0.8rem; color: #475569; line-height: 1.6;">'
                     f'{joined_clinical_attrs}'
-                    f'</div>'
-                    f'<hr style="margin: 12px 0; border: none; border-top: 1px dashed #E2E8F0;">'
-                    f'<div style="font-size: 0.79rem; background: #EFF6FF; border-left: 3px solid #0F52BA; padding: 8px 10px; border-radius: 4px; color: #1E3A8A;">'
-                    f'<b>🎯 AI Outreach Pitch:</b> แนะนำแพ็กเกจตรวจคัดกรองเฉพาะด้านโดยอิงจากปัจจัยขับเคลื่อนหลัก <b>{lead_top_driver.split(" ")[0]}</b> เพื่อเสริมการดูแลสุขภาพแบบป้องกัน'
                     f'</div>'
                     f'</div>'
                 )
                 if hasattr(st, "html"):
-                    st.html(profile_card_html)
+                    st.html(profile_header_html)
                 else:
-                    st.markdown(profile_card_html, unsafe_allow_html=True)
+                    st.markdown(profile_header_html, unsafe_allow_html=True)
+
+                # ── Interactive Package & Quotation Selector (Unified Engine) ──
+                lead_pkg_key = f"lead_pkg_choice_{selected_cid}"
+                lead_addons_key = f"lead_addons_choice_{selected_cid}"
+
+                pkg_options = ["std", "bespoke"] if base_quote["needs_custom"] or base_quote["bespoke_package"]["price"] > 0 else ["std"]
+                pkg_labels = {
+                    "std": f"⭐ แพ็กเกจหลัก (Best Match) — ฿{base_quote['std_package']['price']:,}",
+                    "bespoke": f"🧬 แพ็กเกจเฉพาะบุคคล (Tailor-Made) — ฿{base_quote['bespoke_package']['price']:,} (ลด {base_quote['bespoke_package']['discount_pct']}%)",
+                }
+
+                current_pkg_type = st.session_state.get(lead_pkg_key, "bespoke" if base_quote["needs_custom"] else "std")
+                chosen_pkg_type = st.radio(
+                    "📦 เลือกแพ็กเกจที่ต้องการนำเสนอ:",
+                    options=pkg_options,
+                    format_func=lambda k: pkg_labels[k],
+                    index=0 if current_pkg_type == "std" else (1 if "bespoke" in pkg_options else 0),
+                    key=lead_pkg_key,
+                )
+
+                rec_addon_set = {a["code"] for a in base_quote["catalog_addons"] if a["is_recommended"]}
+                chosen_addon_keys = st.multiselect(
+                    "➕ เลือกรายการตรวจเสริมที่รวมในใบเสนอราคา:",
+                    options=list(UNIFIED_ADDON_CATALOG.keys()),
+                    default=base_quote["active_addon_keys"],
+                    format_func=lambda k: f"{UNIFIED_ADDON_CATALOG[k]['name']} (+฿{UNIFIED_ADDON_CATALOG[k]['price']:,}){' ⭐ แนะนำ' if k in rec_addon_set else ''}",
+                    key=lead_addons_key,
+                )
+
+                # Active Quotation Calculation
+                active_quote = build_patient_precision_quotation(
+                    lab_snap=patient_snap,
+                    selected_pkg_type=chosen_pkg_type,
+                    selected_addon_keys=chosen_addon_keys,
+                )
+
+                # Quotation Breakdown & AI Pitch Card
+                quote_summary_html = (
+                    f'<div style="background: white; border: 1.5px solid #0F766E; border-radius: 12px; padding: 14px 16px; margin: 12px 0; box-shadow: 0 2px 8px rgba(15,118,110,0.06);">'
+                    f'<div style="font-size: 0.78rem; font-weight: 800; color: #0F766E; text-transform: uppercase; margin-bottom: 6px;">'
+                    f'🧾 ใบเสนอราคาเฉพาะบุคคล (Live Quotation)'
+                    f'</div>'
+                    f'<div style="display:flex; justify-content:space-between; font-size:0.86rem; font-weight:700; color:#0F172A; margin-bottom:4px;">'
+                    f'<span>{active_quote["active_primary_name"][:32]}...</span>'
+                    f'<span>฿{active_quote["active_primary_price"]:,}</span>'
+                    f'</div>'
+                    f'<div style="font-size:0.77rem; color:#64748B; margin-bottom:6px;">'
+                    f'🩺 <b>เหตุผลทางการแพทย์:</b> {active_quote["clinical_reason_text"]}'
+                    f'</div>'
+                    f'<div style="display:flex; justify-content:space-between; font-size:0.82rem; color:#475569;">'
+                    f'<span>รายการตรวจเสริม (+{len(active_quote["active_addons"])} รายการ)</span>'
+                    f'<span>+฿{active_quote["addons_total"]:,}</span>'
+                    f'</div>'
+                    f'{f"""<div style="display:flex; justify-content:space-between; font-size:0.82rem; color:#D97706; font-weight:700;"><span>ส่วนลดชุดเหมาจ่าย ({active_quote["discount_pct"]}%)</span><span>-฿{active_quote["discount_amount"]:,}</span></div>""" if active_quote["discount_amount"] > 0 else ""}'
+                    f'<hr style="margin: 8px 0; border: none; border-top: 1px dashed #CBD5E1;">'
+                    f'<div style="display:flex; justify-content:space-between; align-items:baseline;">'
+                    f'<div><span style="font-size:0.85rem; font-weight:800; color:#0F172A;">ยอดสุทธิที่ต้องชำระ:</span><br><span style="font-size:0.72rem; color:#16A34A; font-weight:700;">ประหยัดรวม ฿{active_quote["total_savings"]:,}</span></div>'
+                    f'<span style="font-size:1.45rem; font-weight:800; color:#0F766E; font-family:\'JetBrains Mono\',monospace;">฿{active_quote["net_payable"]:,}</span>'
+                    f'</div>'
+                    f'</div>'
+                    f'<div style="font-size: 0.8rem; background: #EFF6FF; border-left: 3.5px solid #0F52BA; padding: 10px 12px; border-radius: 6px; color: #1E3A8A; line-height: 1.5; margin-bottom: 8px;">'
+                    f'<b>🎯 AI Outreach Pitch:</b> {active_quote["ai_pitch"]}'
+                    f'</div>'
+                )
+                if hasattr(st, "html"):
+                    st.html(quote_summary_html)
+                else:
+                    st.markdown(quote_summary_html, unsafe_allow_html=True)
 
             with col_lead_plot:
                 rendered_wf = False
@@ -2713,26 +2768,32 @@ def render_lead_scoring_xai_dashboard(raw_clinical_df=None, prophet_model=None, 
 
                 st.caption("ℹ️ แถบสีแดง (+) บ่งชี้ว่าตัวแปรดังกล่าวเพิ่มความน่าจะเป็นในการซื้อแพ็กเกจ ขณะที่แถบสีน้ำเงิน (-) ลดความน่าจะเป็นเทียบกับฐานทั่วไป")
                 if st.button("👉 เปิดดูและปรับแต่งแพ็กเกจเฉพาะบุคคลใน Patient Insight Card", key=f"btn_nav_pic_{selected_cid}", type="primary", use_container_width=True):
+                    st.session_state[f"lead_prescribed_type_{selected_cid}"] = chosen_pkg_type
+                    st.session_state[f"lead_prescribed_addons_{selected_cid}"] = active_quote["active_addon_keys"]
+                    st.session_state[f"active_pkg_sel_{selected_cid}"] = chosen_pkg_type
+                    st.session_state[f"addons_multisel_{selected_cid}"] = active_quote["active_addon_keys"]
                     st.session_state["cached_lead_customer"] = {
                         "customer_id": str(selected_cid),
                         "age": float(age_val),
                         "systolic": float(sys_val),
+                        "diastolic": float(dia_bp_val),
                         "bmi": float(bmi_val),
                         "visits_12m": float(visits_val),
                         "gender": str(gender_str),
-                        "gender_code": 1.0 if gender_str in ["หญิง", "female", "F"] else 0.0,
+                        "gender_code": 1.0 if gender_str in ["ชาย", "male", "M"] else 0.0,
                         "is_dm": bool(_feat("Diabetes (Dx)") >= 0.5) if callable(_feat) else False,
                         "is_ht": bool(_feat("Hypertension (Dx)") >= 0.5) if callable(_feat) else (float(sys_val) >= 140.0),
                         "is_dlp": bool(_feat("Dyslipidemia (Dx)") >= 0.5) if callable(_feat) else False,
                         "propensity_score": float(lead_score),
                         "top_driver": str(lead_top_driver),
-                        "pers_pkg": pers_pkg,
+                        "quote": active_quote,
                         "shap_explanation": single_explanation,
                     }
                     st.session_state["pending_nav_section"] = "patient"
                     st.session_state["search_patient_id"] = str(selected_cid)
                     st.session_state["pic_search_input"] = str(selected_cid)
                     st.session_state["active_page_key"] = "patient"
+                    st.session_state["last_synced_page"] = "patient"
                     st.query_params["page"] = "patient"
                     st.rerun()
 

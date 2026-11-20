@@ -393,7 +393,7 @@ def main() -> None:
     elif target_page_key == "lead":
         with st.spinner("กำลังประมวลผลโมเดล AI Lead Scoring & Precision Cross-Sell..."):
             snap_df, enc_df, _ = load_synthetic_dataset()
-            clin_base = enc_df if not enc_df.empty else snap_df
+            clin_base = snap_df if not snap_df.empty else enc_df
             mod = importlib.import_module("views.lead_intelligence")
             run_with_error_boundary(
                 active_page_meta["title"],

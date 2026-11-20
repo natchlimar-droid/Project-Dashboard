@@ -265,14 +265,23 @@ def resolve_patient_lab_snapshot(
         res = dict(matched_row)
         res["patient_id"] = str(matched_row.get("patient_id", clean_term))
         res["hn"] = str(matched_row.get("hn", f"HN68{int(res['patient_id']):05d}" if res["patient_id"].isdigit() else f"HN-{res['patient_id']}"))
-        res["age"] = float(age_val if age_val is not None else matched_row.get("age", 48.0))
-        g_raw = str(matched_row.get("gender", ""))
-        g_code_raw = float(matched_row.get("gender_code", gender_code))
-        res["gender"] = "หญิง" if (g_raw in ["หญิง", "female", "F"] or g_code_raw > 0.5) else "ชาย"
-        res["bmi"] = float(bmi_val if bmi_val is not None else matched_row.get("bmi", 22.5))
-        res["systolic_bp"] = float(sys_val if sys_val is not None else matched_row.get("sbp", 120.0))
-        res["diastolic_bp"] = float(dia_bp_val if dia_bp_val is not None else matched_row.get("dbp", 80.0))
-        res["visits_last_2y"] = int(visits_val if visits_val is not None else matched_row.get("visits_last_2y", 1))
+        res["age"] = float(matched_row.get("age", age_val if age_val is not None else 48.0))
+        g_raw = str(matched_row.get("gender", "")).strip()
+        g_code_raw = float(matched_row.get("gender_code", gender_code if gender_code is not None else 1.0))
+        if "ชาย" in g_raw or g_raw.lower() in ["male", "m"]:
+            res["gender"] = "ชาย"
+            res["gender_code"] = 1.0
+        elif "หญิง" in g_raw or g_raw.lower() in ["female", "f"]:
+            res["gender"] = "หญิง"
+            res["gender_code"] = 0.0
+        else:
+            res["gender"] = "ชาย" if g_code_raw >= 0.5 else "หญิง"
+            res["gender_code"] = 1.0 if g_code_raw >= 0.5 else 0.0
+        res["bmi"] = float(matched_row.get("bmi", bmi_val if bmi_val is not None else 22.5))
+        res["systolic_bp"] = float(matched_row.get("sbp", sys_val if sys_val is not None else 120.0))
+        res["diastolic_bp"] = float(matched_row.get("dbp", dia_bp_val if dia_bp_val is not None else 80.0))
+        res["visits_last_2y"] = int(matched_row.get("visits_last_2y", visits_val if visits_val is not None else 1))
+        res["prior_visits_12m"] = int(matched_row.get("prior_visits_12m", visits_val if visits_val is not None else 1))
         
         # Comprehensive Lab Biomarkers (map parquet column names to UI keys)
         res["fpg_mg_dl"] = float(matched_row.get("fpg_mg_dl", matched_row.get("fbs", 95.0)))
@@ -312,7 +321,7 @@ def resolve_patient_lab_snapshot(
     return {
         "patient_id": sel_pid_str,
         "age": float(age_val),
-        "gender": "หญิง" if gender_code > 0.5 else "ชาย",
+        "gender": "ชาย" if gender_code >= 0.5 else "หญิง",
         "bmi": float(bmi_val),
         "systolic_bp": float(sys_val),
         "diastolic_bp": float(dia_bp_val),
