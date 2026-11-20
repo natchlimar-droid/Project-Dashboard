@@ -230,7 +230,15 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   }
 }
 
-/* ── Mobile Responsive Layout ────────────────────────────────────────────── */
+/* ── Mobile & Tablet Responsive Layout (Stacked Mobile-First Rows) ───────── */
+.lab-row-grid {
+  display: grid;
+  grid-template-columns: 35% 43% 22%;
+  align-items: center;
+  padding: 10px 14px;
+  gap: 10px;
+}
+
 @media (max-width: 768px) {
   .clinic-brand-card {
     padding: 12px 14px;
@@ -239,5 +247,53 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     padding: 8px 12px;
     font-size: 0.78rem;
   }
+  .lab-row-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    padding: 11px 12px !important;
+  }
+  .lab-row-grid .lab-col-meta {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    width: 100% !important;
+  }
+  .lab-row-grid .lab-col-bar {
+    width: 100% !important;
+    padding: 4px 0 !important;
+  }
 }
+
+/* ── Print / A4 Snapshot Layout (Geriatric & Executive Ergonomics) ────────── */
+@media print {
+  header, [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"],
+  [data-testid="stToolbar"], .stRadio, .stTextInput, .navbar, footer,
+  button, .stButton, .stDownloadButton, nav.app-breadcrumb, .stTabs [data-baseweb="tab-list"] {
+    display: none !important;
+  }
+  body, .stApp, .main, [data-testid="stAppViewContainer"] {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    font-size: 11pt !important;
+  }
+  .pc-brand-card, .clinic-brand-card {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    border: 1px solid #CBD5E1 !important;
+  }
+  .lab-organ-card, .triage-card, .vital-card, .correlation-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    box-shadow: none !important;
+    border: 1px solid #CBD5E1 !important;
+    margin-bottom: 12px !important;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 12mm 10mm 12mm 10mm;
+  }
+}
+
 

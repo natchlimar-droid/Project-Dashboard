@@ -125,21 +125,133 @@ def show_quotation_print_dialog(
     st.info("💡 สามารถกดปุ่มพิมพ์ (Ctrl+P) หรือบันทึกภาพหน้าจอนี้เพื่อส่งต่อให้ผู้รับบริการหรือทีมขายได้ทันที")
 
 
-def _render_visual_range_bar(fval: float, r_min: float, r_max: float, marker_col: str) -> str:
-    """Renders a normalized visual scale bar with shaded normal reference band and pinpoint marker."""
-    span = r_max - r_min
-    d_min = max(0.0, r_min - span * 0.6)
-    d_max = r_max + span * 0.8
-    if d_max <= d_min:
-        d_max = d_min + 1.0
-    val_pct = max(3.0, min(97.0, (fval - d_min) / (d_max - d_min) * 100.0))
-    norm_start_pct = max(0.0, (r_min - d_min) / (d_max - d_min) * 100.0)
-    norm_width_pct = max(8.0, (r_max - r_min) / (d_max - d_min) * 100.0)
+def get_lab_range_type(key: str) -> str:
+    """Classifies lab biomarkers into 3 physiological reference range geometries."""
+    if key in ["egfr", "hdl_mg_dl"]:
+        return "lower_only"
+    if key in ["ldl_mg_dl", "cholesterol_mg_dl", "triglyceride_mg_dl", "uacr_mg_g", "alt_u_l", "ast_u_l", "uric_acid_mg_dl", "creatinine_mg_dl", "hba1c_pct"]:
+        return "upper_only"
+    return "two_sided"
+
+
+def compute_clinical_correlations(
+    lab_snap: Dict[str, Any],
+    age_val: float,
+    gender_str: str,
+    sys_val: float,
+    dia_bp_val: float,
+    is_dm: bool,
+    is_ht: bool,
+    is_dlp: bool,
+) -> List[Dict[str, str]]:
+    """
+    Automated Clinical Syndromic Correlation Engine:
+    Connects multi-organ lab markers into clinical syndromes (DKD, Renal Anemia, Cardiorenal, MASLD, etc.).
+    """
+    correlations: List[Dict[str, str]] = []
+
+    egfr = float(lab_snap.get("egfr", 90.0) or 90.0)
+    uacr = float(lab_snap.get("uacr_mg_g", 0.0) or 0.0)
+    hba1c = float(lab_snap.get("hba1c_pct", 5.4) or 5.4)
+    fpg = float(lab_snap.get("fpg_mg_dl", 95.0) or 95.0)
+    hb = float(lab_snap.get("hb_g_dl", 14.0) or 14.0)
+    alt = float(lab_snap.get("alt_u_l", 25.0) or 25.0)
+    ast = float(lab_snap.get("ast_u_l", 25.0) or 25.0)
+    uric = float(lab_snap.get("uric_acid_mg_dl", 5.0) or 5.0)
+    ldl = float(lab_snap.get("ldl_mg_dl", 95.0) or 95.0)
+    tg = float(lab_snap.get("triglyceride_mg_dl", 110.0) or 110.0)
+    bmi = float(lab_snap.get("bmi", 23.0) or 23.0)
+
+    # 1. Diabetic Kidney Disease (DKD) & Albuminuria
+    if (egfr < 60.0 or uacr >= 30.0) and (hba1c >= 6.5 or fpg >= 126.0 or is_dm):
+        stage = "ระยะ 4-5 (ไตวายรุนแรง)" if egfr < 30.0 else ("ระยะ 3b (รุนแรงปานกลาง)" if egfr < 45.0 else ("ระยะ 3a" if egfr < 60.0 else "ระยะ 1-2"))
+        uacr_txt = f"โปรตีนรั่วในปัสสาวะ UACR {uacr:.1f} mg/g" if uacr >= 30.0 else "เสี่ยงไตเสื่อมจากเบาหวาน"
+        correlations.append({
+            "icon": "🚨" if egfr < 45.0 or uacr >= 300.0 else "💡",
+            "title": f"Diabetic Kidney Disease (DKD) สหสัมพันธ์เบาหวานลงไต ({stage})",
+            "evidence": f"eGFR {egfr:.1f} mL/min ร่วมกับ {uacr_txt} และระดับน้ำตาลสะสม (HbA1c {hba1c:.1f}%)",
+            "advice": "ควรระวังการใช้ยากลุ่ม NSAIDs และยาที่มีพิษต่อไต, ปรับขนาดยาขับทางไตตาม eGFR, ตั้งเป้าควบคุมความดัน < 130/80 mmHg และนัดตรวจติดตาม UACR ซ้ำใน 3 เดือน",
+            "severity": "panic" if egfr < 30.0 or uacr >= 300.0 else "critical"
+        })
+
+    # 2. Renal Anemia (ภาวะโลหิตจางสัมพันธ์กับโรคไตเรื้อรัง)
+    anemia_cutoff = 12.0 if gender_str == "หญิง" else 13.0
+    if egfr < 60.0 and hb < anemia_cutoff:
+        correlations.append({
+            "icon": "🩸",
+            "title": "Renal Anemia (ภาวะโลหิตจางสัมพันธ์กับโรคไตเรื้อรัง)",
+            "evidence": f"ระดับฮีโมโกลบินลดลง (Hb {hb:.1f} g/dL) สัมพันธ์กับไตเสื่อมเรื้อรัง (eGFR {egfr:.1f} mL/min)",
+            "advice": "ไตเสื่อมทำให้การสร้างฮอร์โมน Erythropoietin (EPO) ลดลง แนะนำตรวจ Serum Ferritin และ Iron Profile เพิ่มเติม และปรึกษาอายุรแพทย์โรคไต",
+            "severity": "panic" if hb < 8.0 else "warning"
+        })
+
+    # 3. Cardiorenal-Metabolic Risk
+    if (sys_val >= 140.0 or dia_bp_val >= 90.0 or is_ht) and (ldl >= 130.0 or tg >= 200.0 or is_dlp) and (egfr < 60.0 or uacr >= 30.0):
+        correlations.append({
+            "icon": "🫀",
+            "title": "Cardiorenal-Metabolic Syndrome (สหสัมพันธ์ความดัน-ไขมันและไตเสื่อม)",
+            "evidence": f"ความดันโลหิตสูง ({sys_val:.0f}/{dia_bp_val:.0f} mmHg) ร่วมกับไขมันผิดปกติและไตทำงานลดลง (eGFR {egfr:.1f})",
+            "advice": "ความดันและไขมันที่สูงเร่งให้ไตเสื่อมเร็วขึ้นและเพิ่มความเสี่ยงโรคหลอดเลือดหัวใจ แนะนำจำกัดโซเดียม < 2,000 mg/วัน, ใช้ Statin และตรวจ EKG",
+            "severity": "warning"
+        })
+
+    # 4. Metabolic Dysfunction-Associated Steatotic Liver Disease (MASLD / ไขมันพอกตับ)
+    if (alt >= 40.0 or ast >= 40.0) and (bmi >= 25.0 or tg >= 200.0 or hba1c >= 6.5 or is_dm):
+        correlations.append({
+            "icon": "🧪",
+            "title": "MASLD / MASH (สหสัมพันธ์เอนไซม์ตับสูงและกลุ่มอาการเมตาบอลิก)",
+            "evidence": f"เอนไซม์ตับสูง (ALT {alt:.0f} U/L) ร่วมกับภาวะน้ำหนักเกิน (BMI {bmi:.1f}) หรือไขมันไตรกลีเซอไรด์สูง",
+            "advice": "สงสัยภาวะไขมันพอกตับจากการเผาผลาญผิดปกติ แนะนำตรวจ Ultrasound ช่องท้องส่วนบน หรือ FibroScan และควบคุมอาหารลดแป้ง/น้ำตาล",
+            "severity": "warning"
+        })
+
+    # 5. Hyperuricemia & Urate Nephropathy Risk
+    if uric >= 8.5 and egfr < 60.0:
+        correlations.append({
+            "icon": "🦴",
+            "title": "Hyperuricemia & Gout Risk (กรดยูริกสูงในผู้ป่วยไตเสื่อม)",
+            "evidence": f"กรดยูริกสูง ({uric:.1f} mg/dL) ในผู้ป่วยที่ไตขับยูริกได้ลดลง (eGFR {egfr:.1f} mL/min)",
+            "advice": "เสี่ยงต่อการเกิดผลึกยูริกอุดกั้นท่อไตและข้ออักเสบเกาต์ แนะนำงดสัตว์ปีก/เครื่องใน/แอลกอฮอล์ ดื่มน้ำให้เพียงพอ และพิจารณายาลดยูริก",
+            "severity": "warning"
+        })
+
+    return correlations
+
+
+def _render_visual_range_bar(fval: float, r_min: float, r_max: float, marker_col: str, range_type: str = "two_sided") -> str:
+    """
+    Renders a Smart Range Bar matching clinical physiology:
+    - two_sided: Normal band in the center (Hb, FPG, CBC, TSH)
+    - upper_only: Normal band starts at 0% on the left (LDL, TG, UACR, HbA1c, ALT, Uric)
+    - lower_only: Normal band is on the far right up to 100% (eGFR, HDL)
+    """
+    if range_type == "upper_only":
+        d_min = 0.0
+        d_max = max(r_max * 2.0, fval * 1.15) if r_max > 0 else 100.0
+        norm_start_pct = 0.0
+        norm_width_pct = min(60.0, (r_max / d_max) * 100.0)
+        val_pct = max(3.0, min(97.0, (fval / d_max) * 100.0))
+    elif range_type == "lower_only":
+        d_min = 0.0
+        d_max = max(r_min * 1.4, fval * 1.15) if r_min > 0 else 100.0
+        norm_start_pct = max(30.0, (r_min / d_max) * 100.0)
+        norm_width_pct = 100.0 - norm_start_pct
+        val_pct = max(3.0, min(97.0, (fval / d_max) * 100.0))
+    else:  # two_sided
+        span = r_max - r_min
+        d_min = max(0.0, r_min - span * 0.7)
+        d_max = r_max + span * 0.7
+        if d_max <= d_min:
+            d_max = d_min + 1.0
+        norm_start_pct = max(0.0, (r_min - d_min) / (d_max - d_min) * 100.0)
+        norm_width_pct = max(8.0, (r_max - r_min) / (d_max - d_min) * 100.0)
+        val_pct = max(3.0, min(97.0, (fval - d_min) / (d_max - d_min) * 100.0))
+
     return f"""
-    <div style="position:relative; width:100%; height:16px; display:flex; align-items:center;" title="ผลตรวจ {fval:.2f} (เกณฑ์ปกติ: {r_min} - {r_max})">
-        <div style="position:absolute; width:100%; height:6px; background:#F1F5F9; border-radius:999px;"></div>
-        <div style="position:absolute; left:{norm_start_pct:.1f}%; width:{norm_width_pct:.1f}%; height:6px; background:#CBD5E1; border-radius:999px;"></div>
-        <div style="position:absolute; left:calc({val_pct:.1f}% - 6px); width:12px; height:12px; border-radius:50%; background:{marker_col}; border:2px solid white; box-shadow:0 1px 4px rgba(0,0,0,0.25); z-index:2;"></div>
+    <div style="position:relative; width:100%; height:18px; display:flex; align-items:center;" title="ผลตรวจ {fval:.2f} (เกณฑ์ปกติ: {r_min} - {r_max})">
+        <div style="position:absolute; width:100%; height:7px; background:#F1F5F9; border-radius:999px;"></div>
+        <div style="position:absolute; left:{norm_start_pct:.1f}%; width:{norm_width_pct:.1f}%; height:7px; background:#CBD5E1; border-radius:999px;"></div>
+        <div style="position:absolute; left:calc({val_pct:.1f}% - 7px); width:14px; height:14px; border-radius:50%; background:{marker_col}; border:2.5px solid white; box-shadow:0 1px 5px rgba(0,0,0,0.3); z-index:2;"></div>
     </div>
     """
 
@@ -156,7 +268,7 @@ def render_zone3_lab_matrix(
     Renders Zone 3 Interactive Lab Matrix as an isolated fragment.
     Filter changes and searches update ONLY this section with 0-flicker UX.
     Organ cards are dynamically sorted by clinical risk so the most critical organ is top-left.
-    Rows use CSS Grid (35% 43% 22%) for pixel-perfect vertical alignment like a hospital EMR.
+    Rows use CSS Grid (35% 43% 22%) with responsive mobile stacked fallback and WCAG AA contrast.
     """
     st.markdown("##### 🔬 แผงวิเคราะห์ผลตรวจทางห้องปฏิบัติการ (Interactive Visual Range Matrix)")
     st.caption("แถบสเกลวัดระดับ (Visual Range Bar) ช่วยให้เห็นทันทีว่าผลตรวจอยู่ในช่วงปกติ (แถบสีเทา) หรือเบี่ยงเบนออกนอกเกณฑ์")
@@ -211,12 +323,12 @@ def render_zone3_lab_matrix(
                     <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; margin-bottom:14px; overflow:hidden;">
                         <div style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
                             <div>
-                                <span style="font-size:0.88rem; font-weight:800; color:#0F172A;">{title_th}</span>
-                                <span style="font-size:0.72rem; color:#64748B;">({title_en})</span>
+                                <span style="font-size:0.92rem; font-weight:800; color:#0F172A;">{title_th}</span>
+                                <span style="font-size:0.75rem; color:#475569;">({title_en})</span>
                             </div>
-                            <span style="font-size:0.72rem; color:#047857; background:#ECFDF5; border:1px solid #A7F3D0; padding:2px 8px; border-radius:6px; font-weight:700;">🟢 ปกติทุกค่า</span>
+                            <span style="font-size:0.75rem; color:#047857; background:#ECFDF5; border:1px solid #A7F3D0; padding:2px 8px; border-radius:6px; font-weight:700;">🟢 ปกติทุกค่า</span>
                         </div>
-                        <div style="padding:12px 16px; font-size:0.78rem; color:#94A3B8; text-align:center;">
+                        <div style="padding:14px 16px; font-size:0.82rem; color:#64748B; text-align:center;">
                             ไม่มีรายการที่ตรงกับเงื่อนไขในหมวดนี้
                         </div>
                     </div>
@@ -224,48 +336,66 @@ def render_zone3_lab_matrix(
                 )
             return
 
-        if crit_c > 0:
+        has_panic = any(it.get("is_panic") for it in filtered)
+        if has_panic:
+            border_left_style = "border-left: 5px solid #991B1B;"
+            badge_card = f'<span style="background:#FEE2E2; color:#991B1B; border:1px solid #FECACA; font-size:0.75rem; font-weight:800; padding:3px 10px; border-radius:6px;">🚨⚡ PANIC ALERT: ค่าวิกฤตฉุกเฉิน</span>'
+        elif crit_c > 0:
             border_left_style = "border-left: 4px solid #DC2626;"
-            badge_card = f'<span style="background:#FEE2E2; color:#B91C1C; border:1px solid #FECACA; font-size:0.72rem; font-weight:800; padding:2px 8px; border-radius:6px;">🔴 วิกฤต {crit_c} | รวมผิดปกติ {n_abn}</span>'
+            badge_card = f'<span style="background:#FEE2E2; color:#B91C1C; border:1px solid #FECACA; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">🔴 วิกฤต {crit_c} | รวมผิดปกติ {n_abn}</span>'
         elif n_abn > 0:
             border_left_style = "border-left: 4px solid #EA580C;"
-            badge_card = f'<span style="background:#FFEDD5; color:#9A3412; border:1px solid #FED7AA; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px;">⚠️ ผิดปกติ {n_abn} รายการ</span>'
+            badge_card = f'<span style="background:#FFEDD5; color:#9A3412; border:1px solid #FED7AA; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:6px;">⚠️ ผิดปกติ {n_abn} รายการ</span>'
         else:
             border_left_style = "border-left: 4px solid #10B981;"
-            badge_card = f'<span style="background:#ECFDF5; color:#047857; border:1px solid #A7F3D0; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px;">🟢 ปกติทุกค่า</span>'
+            badge_card = f'<span style="background:#ECFDF5; color:#047857; border:1px solid #A7F3D0; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:6px;">🟢 ปกติทุกค่า</span>'
 
         priority_tag = (
-            '<span style="font-size:0.68rem; background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; padding:1px 6px; border-radius:4px; font-weight:700; margin-left:6px;">🚨 ลำดับความสำคัญสูงสุด</span>'
-            if is_top_priority and crit_c > 0 else ""
+            '<span style="font-size:0.7rem; background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; padding:2px 7px; border-radius:4px; font-weight:800; margin-left:6px;">🚨 ลำดับความสำคัญสูงสุด</span>'
+            if is_top_priority and (crit_c > 0 or has_panic) else ""
         )
 
-        # CSS Grid: grid-template-columns: 35% 43% 22% for pixel-perfect vertical alignment like hospital EMR
+        # CSS Grid Rows: 35% 43% 22% with Mobile Responsive Stacked Fallback
         rows_code = ""
         for idx, it in enumerate(filtered):
             is_last_row = (idx == len(filtered) - 1)
             b_btm = "none" if is_last_row else "1px solid #F1F5F9"
-            range_bar_html = _render_visual_range_bar(it["fval"], it["r_min"], it["r_max"], it["marker_col"])
+            range_bar_html = _render_visual_range_bar(
+                it["fval"],
+                it["r_min"],
+                it["r_max"],
+                it["marker_col"],
+                range_type=it.get("range_type", "two_sided"),
+            )
+
+            panic_pill = (
+                '<span style="font-size:0.68rem; background:#991B1B; color:white; padding:1px 5px; border-radius:3px; font-weight:800; margin-left:4px;">PANIC</span>'
+                if it.get("is_panic") else ""
+            )
 
             rows_code += f"""
-            <div style="display:grid; grid-template-columns: 35% 43% 22%; align-items:center; padding:9px 14px; border-bottom:{b_btm}; gap:8px;">
-                <!-- Col 1 (35%): Name & Reference -->
-                <div style="min-width:0;">
-                    <div style="display:flex; align-items:center; gap:5px; flex-wrap:nowrap;">
-                        <span style="font-size:0.84rem; font-weight:700; color:#1E293B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{it['name_th']}">{it['name_th']}</span>
-                        <span style="font-size:0.68rem; color:#64748B; background:#F1F5F9; padding:1px 5px; border-radius:4px; font-weight:600; flex-shrink:0;">{it['abbr']}</span>
-                    </div>
-                    <div style="font-size:0.7rem; color:#94A3B8; margin-top:2px;">
-                        เกณฑ์ปกติ: {it['r_min']} - {it['r_max']} {it['unit']}
+            <div class="lab-row-grid" style="border-bottom:{b_btm};">
+                <!-- Col 1 (35%): Name & Reference (Geriatric WCAG AA Contrast) -->
+                <div class="lab-col-meta" style="min-width:0;">
+                    <div>
+                        <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                            <span style="font-size:0.92rem; font-weight:800; color:#0F172A;" title="{it['name_th']}">{it['name_th']}</span>
+                            <span style="font-size:0.72rem; color:#475569; background:#F1F5F9; border:1px solid #E2E8F0; padding:1px 5px; border-radius:4px; font-weight:700;">{it['abbr']}</span>
+                            {panic_pill}
+                        </div>
+                        <div style="font-size:0.82rem; color:#334155; font-weight:600; margin-top:3px;">
+                            ช่วงอ้างอิงปกติ: <b>{it['r_min']} - {it['r_max']}</b> <span style="font-size:0.75rem; color:#475569;">{it['unit']}</span>
+                        </div>
                     </div>
                 </div>
-                <!-- Col 2 (43%): Visual Range Bar -->
-                <div style="padding:0 6px;">
+                <!-- Col 2 (43%): Smart Range Bar -->
+                <div class="lab-col-bar" style="padding:0 6px;">
                     {range_bar_html}
                 </div>
                 <!-- Col 3 (22%): Value & Trend -->
-                <div style="text-align:right; min-width:0;">
-                    <div style="font-size:1.02rem; font-weight:800; color:{it['marker_col']}; font-family:'JetBrains Mono',monospace; line-height:1.2;">
-                        {it['fval']:.2f} <span style="font-size:0.72rem; color:#64748B; font-weight:600;">{it['unit']}</span>
+                <div class="lab-col-val" style="text-align:right; min-width:0;">
+                    <div style="font-size:1.15rem; font-weight:800; color:{it['marker_col']}; font-family:'JetBrains Mono',monospace; line-height:1.2;">
+                        {it['fval']:.2f} <span style="font-size:0.78rem; color:#475569; font-weight:700;">{it['unit']}</span>
                     </div>
                     <div style="margin-top:2px;">
                         {it['trend_badge']}
@@ -276,11 +406,11 @@ def render_zone3_lab_matrix(
 
         render_html(
             f"""
-            <div style="background:white; border:1px solid #E2E8F0; {border_left_style} border-radius:12px; margin-bottom:14px; overflow:hidden; box-shadow:0 1px 3px rgba(15,23,42,0.02);">
+            <div class="lab-organ-card" style="background:white; border:1px solid #E2E8F0; {border_left_style} border-radius:12px; margin-bottom:14px; overflow:hidden; box-shadow:0 1px 3px rgba(15,23,42,0.02);">
                 <div style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
                     <div>
-                        <span style="font-size:0.88rem; font-weight:800; color:#0F172A;">{title_th}</span>
-                        <span style="font-size:0.72rem; color:#64748B;">({title_en})</span>
+                        <span style="font-size:0.92rem; font-weight:800; color:#0F172A;">{title_th}</span>
+                        <span style="font-size:0.75rem; color:#475569;">({title_en})</span>
                         {priority_tag}
                     </div>
                     {badge_card}
@@ -856,51 +986,75 @@ def render_patient_card_view(
             ]),
         ]
 
-        def _classify_severity(k_name: str, val_num: float, min_r: float, max_r: float) -> Tuple[str, str, str, str]:
-            # Returns (tier: 'critical'|'moderate'|'mild'|'normal', marker_color, label_th, clinical_note)
+        def _classify_severity(k_name: str, val_num: float, min_r: float, max_r: float) -> Tuple[str, str, str, str, bool]:
+            # Returns (tier: 'critical'|'moderate'|'mild'|'normal', marker_color, label_th, clinical_note, is_panic: bool)
+            
+            # 0. Emergency Panic Tier (วิกฤตฉุกเฉิน LIS Critical Alert - ต้องรายงานแพทย์ทันที)
+            if k_name == "egfr" and val_num < 30.0:
+                return "critical", "#991B1B", "🚨 วิกฤตฉุกเฉิน (ไตวายรุนแรง Stage 4-5)", f"eGFR {val_num:.1f} mL/min วิกฤต! ไตทำงานเหลือน้อยกว่า 30% ต้องพบอายุรแพทย์โรคไตทันที", True
+            if k_name == "uacr_mg_g" and val_num >= 300.0:
+                return "critical", "#991B1B", "🚨 วิกฤตฉุกเฉิน (โปรตีนรั่วรุนแรง)", f"UACR {val_num:.1f} mg/g มีโปรตีนรั่วระดับ Macroalbuminuria เสี่ยงไตวายเฉียบพลัน", True
+            if k_name == "hba1c_pct" and val_num >= 9.0:
+                return "critical", "#991B1B", "🚨 วิกฤตฉุกเฉิน (น้ำตาลสะสมวิกฤต)", f"HbA1c {val_num:.1f}% สูงวิกฤต เสี่ยงภาวะแทรกซ้อนเฉียบพลัน (Hyperglycemic Crisis)", True
+            if k_name == "fpg_mg_dl" and val_num >= 250.0:
+                return "critical", "#991B1B", "🚨 วิกฤตฉุกเฉิน (น้ำตาลอดอาหารสูงวิกฤต)", f"FPG {val_num:.0f} mg/dL น้ำตาลสูงวิกฤต เสี่ยงภาวะหมดสติจากเบาหวาน", True
+            if k_name == "ldl_mg_dl" and val_num >= 190.0:
+                return "critical", "#991B1B", "🚨 วิกฤตฉุกเฉิน (ไขมันเลวสูงวิกฤต)", f"LDL {val_num:.0f} mg/dL วิกฤต! เสี่ยงหลอดเลือดหัวใจและสมองตีบเฉียบพลัน", True
+            if k_name == "uric_acid_mg_dl" and val_num >= 10.0:
+                return "critical", "#991B1B", "🚨 วิกฤตฉุกเฉิน (ยูริกสูงวิกฤต)", f"กรดยูริก {val_num:.1f} mg/dL เสี่ยงภาวะไตวายจากผลึกยูริกและข้ออักเสบเกาต์รุนแรง", True
+            if k_name in ["alt_u_l", "ast_u_l"] and val_num >= 120.0:
+                return "critical", "#991B1B", "🚨 วิกฤตฉุกเฉิน (ตับอักเสบรุนแรง)", f"เอนไซม์ตับ {val_num:.0f} U/L สูงเกิน 3 เท่าของเกณฑ์ปกติ บ่งชี้เซลล์ตับถูกทำลายรุนแรง", True
+            if k_name == "hb_g_dl" and val_num < 8.0:
+                return "critical", "#991B1B", "🚨 วิกฤตฉุกเฉิน (ซีดรุนแรง)", f"Hb {val_num:.1f} g/dL ซีดขั้นวิกฤต อาจต้องพิจารณาให้เลือดทดแทน", True
+            if k_name == "platelet_count_10_3_ul" and val_num <= 50.0:
+                return "critical", "#991B1B", "🚨 วิกฤตฉุกเฉิน (เกล็ดเลือดต่ำวิกฤต)", f"เกล็ดเลือด {val_num:.0f} 10³/µL เสี่ยงภาวะเลือดออกเองในอวัยวะภายใน", True
+
             if min_r <= val_num <= max_r:
-                return "normal", "#0F766E", "ปกติ", "อยู่ในเกณฑ์อ้างอิง"
+                return "normal", "#0F766E", "ปกติ", "อยู่ในเกณฑ์อ้างอิง", False
 
             # 1. Critical Tier (วิกฤต / ต้องพบแพทย์เร่งด่วน)
             if k_name == "egfr" and val_num < 60:
-                stage = "ระยะ 4-5 (ไตวายรุนแรง)" if val_num < 30 else ("ระยะ 3b (รุนแรงปานกลาง)" if val_num < 45 else "ระยะ 3a")
-                return "critical", "#DC2626", f"🔴 วิกฤต (ไตเสื่อม {stage})", f"eGFR {val_num:.1f} mL/min เข้าสู่ภาวะไตเสื่อม ควรพบแพทย์อายุรกรรมโรคไต"
+                stage = "ระยะ 3b (รุนแรงปานกลาง)" if val_num < 45 else "ระยะ 3a"
+                return "critical", "#DC2626", f"🔴 วิกฤต (ไตเสื่อม {stage})", f"eGFR {val_num:.1f} mL/min เข้าสู่ภาวะไตเสื่อม ควรพบแพทย์อายุรกรรมโรคไต", False
             if k_name == "uacr_mg_g" and val_num >= 30:
-                return "critical", "#DC2626", "🔴 วิกฤต (โปรตีนรั่วในปัสสาวะ)", f"UACR {val_num:.1f} mg/g มีโปรตีนรั่ว เสี่ยงไตวายจากเบาหวาน/ความดัน"
+                return "critical", "#DC2626", "🔴 วิกฤต (โปรตีนรั่วในปัสสาวะ)", f"UACR {val_num:.1f} mg/g มีโปรตีนรั่ว เสี่ยงไตวายจากเบาหวาน/ความดัน", False
             if k_name == "uric_acid_mg_dl" and val_num >= 9.0:
-                return "critical", "#DC2626", "🔴 วิกฤต (ยูริกสูงมาก)", f"กรดยูริก {val_num:.1f} mg/dL เสี่ยงข้ออักเสบเกาต์เฉียบพลันและนิ่วในไต"
-            if k_name == "ldl_mg_dl" and val_num >= 190:
-                return "critical", "#DC2626", "🔴 วิกฤต (ไขมันเลวสูงรุนแรง)", f"LDL {val_num:.0f} mg/dL สูงวิกฤต เสี่ยงหลอดเลือดหัวใจตีบเฉียบพลัน"
+                return "critical", "#DC2626", "🔴 วิกฤต (ยูริกสูงมาก)", f"กรดยูริก {val_num:.1f} mg/dL เสี่ยงข้ออักเสบเกาต์เฉียบพลันและนิ่วในไต", False
+            if k_name == "ldl_mg_dl" and val_num >= 160:
+                return "critical", "#DC2626", "🔴 วิกฤต (ไขมันเลวสูงมาก)", f"LDL {val_num:.0f} mg/dL สูงมาก เสี่ยงหลอดเลือดหัวใจตีบเฉียบพลัน", False
             if k_name == "hba1c_pct" and val_num >= 8.0:
-                return "critical", "#DC2626", "🔴 วิกฤต (เบาหวานควบคุมไม่ได้)", f"HbA1c {val_num:.1f}% สูงมาก เสี่ยงภาวะแทรกซ้อนหลอดเลือดและจอประสาทตา"
+                return "critical", "#DC2626", "🔴 วิกฤต (เบาหวานควบคุมไม่ได้)", f"HbA1c {val_num:.1f}% สูงมาก เสี่ยงภาวะแทรกซ้อนหลอดเลือดและจอประสาทตา", False
             if k_name in ["alt_u_l", "ast_u_l"] and val_num >= 80:
-                return "critical", "#DC2626", "🔴 วิกฤต (ตับอักเสบเฉียบพลัน)", f"เอนไซม์ตับ {val_num:.0f} U/L สูงเกิน 2 เท่า ควรตรวจอัลตราซาวด์ตับ"
+                return "critical", "#DC2626", "🔴 วิกฤต (ตับอักเสบเฉียบพลัน)", f"เอนไซม์ตับ {val_num:.0f} U/L สูงเกิน 2 เท่า ควรตรวจอัลตราซาวด์ตับ", False
+            if k_name == "hb_g_dl" and val_num < 10.0:
+                return "critical", "#DC2626", "🔴 วิกฤต (ภาวะซีดปานกลาง-รุนแรง)", f"Hb {val_num:.1f} g/dL เม็ดเลือดแดงต่ำชัดเจน ควรตรวจหาสาเหตุ", False
 
             # 2. Moderate Tier (เฝ้าระวัง / ปรับพฤติกรรมและยา)
-            if k_name == "ldl_mg_dl" and 130 <= val_num < 190:
-                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (ไขมันเลวสูง)", f"LDL {val_num:.0f} mg/dL แนะนำปรับอาหารไขมันและเริ่มยาลดไขมัน"
+            if k_name == "ldl_mg_dl" and 130 <= val_num < 160:
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (ไขมันเลวสูง)", f"LDL {val_num:.0f} mg/dL แนะนำปรับอาหารไขมันและเริ่มยาลดไขมัน", False
             if k_name == "cholesterol_mg_dl" and val_num >= 200:
-                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (คอเลสเตอรอลสูง)", f"คอเลสเตอรอลรวม {val_num:.0f} mg/dL เกินเกณฑ์มาตรฐาน"
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (คอเลสเตอรอลสูง)", f"คอเลสเตอรอลรวม {val_num:.0f} mg/dL เกินเกณฑ์มาตรฐาน", False
             if k_name == "triglyceride_mg_dl" and val_num >= 200:
-                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (ไตรกลีเซอไรด์สูง)", f"ไตรกลีเซอไรด์ {val_num:.0f} mg/dL เสี่ยงไขมันพอกตับ"
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (ไตรกลีเซอไรด์สูง)", f"ไตรกลีเซอไรด์ {val_num:.0f} mg/dL เสี่ยงไขมันพอกตับ", False
             if k_name == "hba1c_pct" and 6.5 <= val_num < 8.0:
-                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (เบาหวานระยะแรก)", f"HbA1c {val_num:.1f}% เข้าเกณฑ์โรคเบาหวาน ควรตรวจติดตามระดับน้ำตาล"
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (เบาหวานระยะแรก)", f"HbA1c {val_num:.1f}% เข้าเกณฑ์โรคเบาหวาน ควรตรวจติดตามระดับน้ำตาล", False
             if k_name == "fpg_mg_dl" and 126 <= val_num < 180:
-                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (น้ำตาลอดอาหารสูง)", f"FPG {val_num:.0f} mg/dL แนะนำงดของหวานและปรึกษาแพทย์"
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (น้ำตาลอดอาหารสูง)", f"FPG {val_num:.0f} mg/dL แนะนำงดของหวานและปรึกษาแพทย์", False
             if k_name == "egfr" and 60 <= val_num < 90:
-                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (การกรองไตเริ่มลดลง)", f"eGFR {val_num:.1f} mL/min ไตเสื่อมระยะ 2 เลี่ยงเค็มและยาแก้ปวด NSAIDs"
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (การกรองไตเริ่มลดลง)", f"eGFR {val_num:.1f} mL/min ไตเสื่อมระยะ 2 เลี่ยงเค็มและยาแก้ปวด NSAIDs", False
             if k_name == "uric_acid_mg_dl" and 7.2 <= val_num < 9.0:
-                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (กรดยูริกสูง)", f"กรดยูริก {val_num:.1f} mg/dL ควรลดสัตว์ปีก ยอดผัก และแอลกอฮอล์"
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (กรดยูริกสูง)", f"กรดยูริก {val_num:.1f} mg/dL ควรลดสัตว์ปีก ยอดผัก และแอลกอฮอล์", False
             if k_name in ["alt_u_l", "ast_u_l"] and 40 < val_num < 80:
-                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (ตับอักเสบเล็กน้อย)", f"เอนไซม์ตับ {val_num:.0f} U/L สงสัยภาวะไขมันพอกตับ (MASLD)"
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (ตับอักเสบเล็กน้อย)", f"เอนไซม์ตับ {val_num:.0f} U/L สงสัยภาวะไขมันพอกตับ (MASLD)", False
 
             # 3. Mild Tier (เบี่ยงเบนเล็กน้อย)
             if val_num > max_r:
-                return "mild", "#CA8A04", "🟡 เกินเกณฑ์เล็กน้อย", f"สูงกว่าค่าปกติเล็กน้อย ({val_num:.1f} vs max {max_r})"
+                return "mild", "#CA8A04", "🟡 เกินเกณฑ์เล็กน้อย", f"สูงกว่าค่าปกติเล็กน้อย ({val_num:.1f} vs max {max_r})", False
             else:
-                return "mild", "#CA8A04", "🟡 ต่ำกว่าเกณฑ์เล็กน้อย", f"ต่ำกว่าค่าปกติเล็กน้อย ({val_num:.1f} vs min {min_r})"
+                return "mild", "#CA8A04", "🟡 ต่ำกว่าเกณฑ์เล็กน้อย", f"ต่ำกว่าค่าปกติเล็กน้อย ({val_num:.1f} vs min {min_r})", False
 
         # Pre-process all panel items
+        triage_panic = []
         triage_critical = []
         triage_moderate = []
         triage_mild = []
@@ -914,18 +1068,18 @@ def render_patient_card_view(
                 val = lab_snap.get(key)
                 if val is not None and pd.notna(val):
                     fval = float(val)
-                    tier, marker_col, lbl_th, note = _classify_severity(key, fval, r_min, r_max)
+                    tier, marker_col, lbl_th, note, is_panic = _classify_severity(key, fval, r_min, r_max)
                     delta_val = lab_snap.get(delta_col) if delta_col else None
                     if delta_val is not None and pd.notna(delta_val):
                         d_num = float(delta_val)
                         if d_num > 0:
-                            trend_badge = f"<span style='font-size:0.72rem; color:#DC2626; background:#FEF2F2; padding:1px 5px; border-radius:4px; font-weight:600;'>▲ +{d_num:.1f}</span>"
+                            trend_badge = f"<span style='font-size:0.74rem; color:#B91C1C; background:#FEF2F2; border:1px solid #FECACA; padding:2px 6px; border-radius:4px; font-weight:700;'>▲ +{d_num:.1f} <span style='font-size:0.68rem; color:#991B1B;'>เทียบครั้งก่อน</span></span>"
                         elif d_num < 0:
-                            trend_badge = f"<span style='font-size:0.72rem; color:#0F766E; background:#ECFDF5; padding:1px 5px; border-radius:4px; font-weight:600;'>▼ {d_num:.1f}</span>"
+                            trend_badge = f"<span style='font-size:0.74rem; color:#047857; background:#ECFDF5; border:1px solid #A7F3D0; padding:2px 6px; border-radius:4px; font-weight:700;'>▼ {d_num:.1f} <span style='font-size:0.68rem; color:#065F46;'>เทียบครั้งก่อน</span></span>"
                         else:
-                            trend_badge = "<span style='font-size:0.72rem; color:#94A3B8;'>— คงที่</span>"
+                            trend_badge = "<span style='font-size:0.74rem; color:#475569; background:#F8FAFC; border:1px solid #E2E8F0; padding:2px 6px; border-radius:4px; font-weight:600;'>— คงที่</span>"
                     else:
-                        trend_badge = "<span style='font-size:0.72rem; color:#94A3B8;'>— แรกรับ</span>"
+                        trend_badge = "<span style='font-size:0.74rem; color:#475569; background:#F8FAFC; border:1px solid #E2E8F0; padding:2px 6px; border-radius:4px; font-weight:600;'>— ตรวจครั้งแรก</span>"
 
                     if tier != "normal":
                         abnormal_in_panel += 1
@@ -936,8 +1090,11 @@ def render_patient_card_view(
                             "unit": unit,
                             "note": note,
                             "col": marker_col,
+                            "is_panic": is_panic,
                         }
-                        if tier == "critical":
+                        if is_panic:
+                            triage_panic.append(item_summary)
+                        elif tier == "critical":
                             triage_critical.append(item_summary)
                         elif tier == "moderate":
                             triage_moderate.append(item_summary)
@@ -957,6 +1114,8 @@ def render_patient_card_view(
                         "lbl_th": lbl_th,
                         "note": note,
                         "trend_badge": trend_badge,
+                        "is_panic": is_panic,
+                        "range_type": get_lab_range_type(key),
                     }
                     p_items.append(item_dict)
                     all_table_records.append({
@@ -968,14 +1127,15 @@ def render_patient_card_view(
                         "ระดับความเสี่ยง": lbl_th,
                     })
 
-            crit_in_panel = sum(1 for it in p_items if it["tier"] == "critical")
+            panic_in_panel = sum(1 for it in p_items if it.get("is_panic"))
+            crit_in_panel = sum(1 for it in p_items if it["tier"] == "critical" and not it.get("is_panic"))
             mod_in_panel = sum(1 for it in p_items if it["tier"] == "moderate")
             mild_in_panel = sum(1 for it in p_items if it["tier"] == "mild")
-            panel_risk_score = crit_in_panel * 100 + mod_in_panel * 10 + mild_in_panel * 1
-            panels_data.append((p_title, p_en, p_items, abnormal_in_panel, crit_in_panel, panel_risk_score))
+            panel_risk_score = panic_in_panel * 1000 + crit_in_panel * 100 + mod_in_panel * 10 + mild_in_panel * 1
+            panels_data.append((p_title, p_en, p_items, abnormal_in_panel, crit_in_panel + panic_in_panel, panel_risk_score))
 
         total_measured_count = len(all_table_records)
-        total_abnormal_count = len(triage_critical) + len(triage_moderate) + len(triage_mild)
+        total_abnormal_count = len(triage_panic) + len(triage_critical) + len(triage_moderate) + len(triage_mild)
 
         # ── ZONE 1: Patient & Clinical Header Bar ─────────────────────────────
         index_date_raw = lab_snap.get("index_date", None)
@@ -984,7 +1144,12 @@ def render_patient_card_view(
         else:
             visit_date_str = "ตรวจประเมินสุขภาพประจำรอบปี"
 
-        if len(triage_critical) > 0:
+        if len(triage_panic) > 0:
+            risk_badge_bg = "#FFF1F2"
+            risk_badge_color = "#991B1B"
+            risk_badge_border = "#FECDD3"
+            risk_badge_text = f"🚨⚡ ระดับวิกฤตฉุกเฉิน (PANIC): พบ {len(triage_panic)} ค่าวิกฤต ต้องรายงานแพทย์ทันที"
+        elif len(triage_critical) > 0:
             risk_badge_bg = "#FEF2F2"
             risk_badge_color = "#991B1B"
             risk_badge_border = "#FECACA"
@@ -1042,6 +1207,30 @@ def render_patient_card_view(
 
             triage_content_html = ""
 
+            # 0. Emergency Panic Items (LIS Critical Values)
+            if triage_panic:
+                panic_rows = "".join([
+                    f"""
+                    <div style="background:#FFF1F2; border:1px solid #FECDD3; border-left:5px solid #991B1B; border-radius:8px; padding:10px 12px; margin-bottom:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                            <span style="font-size:0.88rem; font-weight:900; color:#881337;">🚨 {item['name']} ({item['abbr']})</span>
+                            <span style="font-size:1.05rem; font-weight:900; color:#991B1B; font-family:'JetBrains Mono',monospace;">{item['val']:.1f} <span style="font-size:0.72rem; color:#881337;">{item['unit']}</span></span>
+                        </div>
+                        <div style="font-size:0.75rem; color:#9F1239; font-weight:600; margin-top:3px; line-height:1.35;">{item['note']}</div>
+                    </div>
+                    """
+                    for item in triage_panic
+                ])
+                triage_content_html += f"""
+                <div style="margin-bottom:14px;">
+                    <div style="font-size:0.78rem; font-weight:800; color:#991B1B; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                        <span>🚨⚡ PANIC: ค่าวิกฤตฉุกเฉิน (Immediate Physician Notification)</span>
+                        <span style="background:#991B1B; color:white; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800;">{len(triage_panic)}</span>
+                    </div>
+                    {panic_rows}
+                </div>
+                """
+
             # 1. Critical Items
             if triage_critical:
                 crit_rows = "".join([
@@ -1065,7 +1254,7 @@ def render_patient_card_view(
                     {crit_rows}
                 </div>
                 """
-            else:
+            elif not triage_panic:
                 triage_content_html += """
                 <div style="background:#F0FDF4; border:1px dashed #BBF7D0; border-radius:8px; padding:8px 12px; margin-bottom:10px; font-size:0.75rem; color:#166534;">
                     🟢 ไม่มีผลตรวจที่อยู่ในเกณฑ์วิกฤต
@@ -1293,6 +1482,66 @@ def render_patient_card_view(
                 )
 
         st.markdown("---")
+
+        # ── Clinical Correlation Banner (เชื่อมโยงความสัมพันธ์ของโรคอัตโนมัติ) ──
+        correlations = compute_clinical_correlations(
+            lab_snap=lab_snap,
+            age_val=age_val,
+            gender_str=gender_str,
+            sys_val=sys_val,
+            dia_bp_val=dia_bp_val,
+            is_dm=bool(_is_dm),
+            is_ht=bool(_is_ht),
+            is_dlp=bool(_is_dlp),
+        )
+
+        if correlations:
+            corr_cards_html = ""
+            for c in correlations:
+                is_panic_corr = c.get("severity") == "panic"
+                border_left_c = "#991B1B" if is_panic_corr else "#4F46E5"
+                badge_bg = "#FEE2E2" if is_panic_corr else "#EEF2FF"
+                badge_txt_c = "#991B1B" if is_panic_corr else "#4338CA"
+                badge_border = "#FECACA" if is_panic_corr else "#C7D2FE"
+                badge_label = "🚨 วิกฤตสัมพันธ์ (Critical Syndrome)" if is_panic_corr else "💡 สหสัมพันธ์ทางคลินิก (Syndromic Correlation)"
+
+                corr_cards_html += f"""
+                <div style="background:white; border:1px solid #E2E8F0; border-left:5px solid {border_left_c}; border-radius:8px; padding:12px 16px; margin-bottom:10px; box-shadow:0 1px 2px rgba(15,23,42,0.02);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:1.15rem;">{c['icon']}</span>
+                            <span style="font-size:0.92rem; font-weight:800; color:#0F172A;">{c['title']}</span>
+                        </div>
+                        <span style="background:{badge_bg}; color:{badge_txt_c}; border:1px solid {badge_border}; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:6px;">
+                            {badge_label}
+                        </span>
+                    </div>
+                    <div style="font-size:0.83rem; color:#334155; margin-top:6px; line-height:1.45;">
+                        <b>หลักฐานทางการแพทย์:</b> {c['evidence']}
+                    </div>
+                    <div style="font-size:0.8rem; color:#1E293B; margin-top:5px; line-height:1.45; background:#F8FAFC; border:1px solid #E2E8F0; padding:7px 12px; border-radius:6px;">
+                        💡 <b>ข้อสังเกต & แนวทางบริบาล:</b> {c['advice']}
+                    </div>
+                </div>
+                """
+
+            render_html(
+                f"""
+                <div class="correlation-card" style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:12px; padding:14px 18px; margin-bottom:20px; box-shadow:0 1px 3px rgba(15,23,42,0.03);">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:1.25rem;">🧠</span>
+                            <span style="font-size:0.96rem; font-weight:800; color:#0F172A;">ข้อสังเกตและความสัมพันธ์ทางคลินิก (Automated Clinical Syndromic Correlation)</span>
+                            <span style="background:#EDE9FE; color:#5B21B6; border:1px solid #C4B5FD; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:999px;">พบ {len(correlations)} กลุ่มอาการสัมพันธ์</span>
+                        </div>
+                        <span style="font-size:0.76rem; color:#64748B;">วิเคราะห์เชื่อมโยงจากผลแล็บ สัญญาณชีพ และประวัติโรคเพื่อป้องกันภาวะแทรกซ้อน</span>
+                    </div>
+                    <div>
+                        {corr_cards_html}
+                    </div>
+                </div>
+                """
+            )
 
         # ── ZONE 3: Interactive Lab Details Matrix (Fragment & Dynamic Sorting) ──
         render_zone3_lab_matrix(
