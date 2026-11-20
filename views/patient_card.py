@@ -640,173 +640,144 @@ def render_patient_card_view(
                 )
 
     # ==========================================================================
-    # TAB 2: 🧪 ผลแล็บ & ประวัติสุขภาพ (Minimalist Cards & Clear Visual Hierarchy)
+    # TAB 2: 🧪 ผลแล็บ & ประวัติสุขภาพ (3-Zone Clinical Hierarchy)
     # ==========================================================================
     with pic_tabs[1]:
-        st.markdown("#### 🧪 สัญญาณชีพและผลตรวจทางห้องปฏิบัติการ (Health Profile & Labs)")
-        st.caption("รวบรวมตัวชี้วัดทางสรีรวิทยาและผลตรวจทางห้องปฏิบัติการ จำแนกตามระบบอวัยวะพร้อมกรอบแสดงผลมินิมอล")
-
-        # ── 1. Top Vitals (4 Minimal Cards with Subtle Borders) ──
-        v_c1, v_c2, v_c3, v_c4 = st.columns(4)
-
-        # Card 1: Blood Pressure
-        bp_is_high = sys_val >= 140 or dia_bp_val >= 90
-        bp_is_warn = sys_val >= 130 or dia_bp_val >= 85
-        bp_status = "🔴 สูง (Hypertension)" if bp_is_high else ("🟡 เฝ้าระวัง" if bp_is_warn else "🟢 ปกติ")
-        bp_badge_bg = "#FEE2E2" if bp_is_high else ("#FEF3C7" if bp_is_warn else "#ECFDF5")
-        bp_badge_color = "#DC2626" if bp_is_high else ("#D97706" if bp_is_warn else "#047857")
-
-        with v_c1:
-            render_html(
-                f"""
-                <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:14px 16px; box-shadow:0 1px 3px rgba(15,23,42,0.02); height:100%; display:flex; flex-direction:column; justify-content:space-between;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span style="font-size:0.8rem; font-weight:700; color:#64748B;">ความดันโลหิต (BP)</span>
-                        <span style="background:{bp_badge_bg}; color:{bp_badge_color}; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:999px;">{bp_status}</span>
-                    </div>
-                    <div style="font-size:1.5rem; font-weight:800; color:#0F172A; font-family:'JetBrains Mono',monospace; line-height:1.2;">
-                        {sys_val:.0f}/{dia_bp_val:.0f} <span style="font-size:0.8rem; font-weight:600; color:#64748B;">mmHg</span>
-                    </div>
-                    <div style="font-size:0.72rem; color:#94A3B8; margin-top:6px;">
-                        เกณฑ์ปกติ: &lt; 120/80 mmHg
-                    </div>
-                </div>
-                """
-            )
-
-        # Card 2: BMI
-        bmi_is_high = bmi_val >= 25.0
-        bmi_is_warn = bmi_val >= 23.0
-        bmi_status = "🔴 อ้วน (Obesity)" if bmi_is_high else ("🟡 ท้วม" if bmi_is_warn else "🟢 ปกติ")
-        bmi_badge_bg = "#FEE2E2" if bmi_is_high else ("#FEF3C7" if bmi_is_warn else "#ECFDF5")
-        bmi_badge_color = "#DC2626" if bmi_is_high else ("#D97706" if bmi_is_warn else "#047857")
-
-        with v_c2:
-            render_html(
-                f"""
-                <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:14px 16px; box-shadow:0 1px 3px rgba(15,23,42,0.02); height:100%; display:flex; flex-direction:column; justify-content:space-between;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span style="font-size:0.8rem; font-weight:700; color:#64748B;">ดัชนีมวลกาย (BMI)</span>
-                        <span style="background:{bmi_badge_bg}; color:{bmi_badge_color}; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:999px;">{bmi_status}</span>
-                    </div>
-                    <div style="font-size:1.5rem; font-weight:800; color:#0F172A; font-family:'JetBrains Mono',monospace; line-height:1.2;">
-                        {bmi_val:.1f} <span style="font-size:0.8rem; font-weight:600; color:#64748B;">kg/m²</span>
-                    </div>
-                    <div style="font-size:0.72rem; color:#94A3B8; margin-top:6px;">
-                        เกณฑ์ปกติ: 18.5 - 22.9 kg/m²
-                    </div>
-                </div>
-                """
-            )
-
-        # Card 3: Blood Sugar
-        fpg = float(lab_snap.get("fpg_mg_dl", 92))
-        hba1c = float(lab_snap.get("hba1c_pct", 5.4))
-        dm_is_high = fpg >= 126 or hba1c >= 6.5
-        dm_is_warn = fpg >= 100 or hba1c >= 5.7
-        dm_status = "🔴 เสี่ยงเบาหวาน" if dm_is_high else ("🟡 เฝ้าระวัง" if dm_is_warn else "🟢 ปกติ")
-        dm_badge_bg = "#FEE2E2" if dm_is_high else ("#FEF3C7" if dm_is_warn else "#ECFDF5")
-        dm_badge_color = "#DC2626" if dm_is_high else ("#D97706" if dm_is_warn else "#047857")
-
-        with v_c3:
-            render_html(
-                f"""
-                <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:14px 16px; box-shadow:0 1px 3px rgba(15,23,42,0.02); height:100%; display:flex; flex-direction:column; justify-content:space-between;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span style="font-size:0.8rem; font-weight:700; color:#64748B;">น้ำตาลสะสม (HbA1c)</span>
-                        <span style="background:{dm_badge_bg}; color:{dm_badge_color}; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:999px;">{dm_status}</span>
-                    </div>
-                    <div style="font-size:1.5rem; font-weight:800; color:#0F172A; font-family:'JetBrains Mono',monospace; line-height:1.2;">
-                        {hba1c:.1f}% <span style="font-size:0.8rem; font-weight:600; color:#64748B;">({fpg:.0f} mg/dL)</span>
-                    </div>
-                    <div style="font-size:0.72rem; color:#94A3B8; margin-top:6px;">
-                        เกณฑ์ปกติ: &lt; 5.7% (FPG &lt; 100)
-                    </div>
-                </div>
-                """
-            )
-
-        # Card 4: Kidney eGFR
-        egfr = float(lab_snap.get("egfr", 88))
-        ckd_is_high = egfr < 60
-        ckd_is_warn = egfr < 90
-        ckd_status = "🔴 ไตเสื่อม (CKD)" if ckd_is_high else ("🟡 เฝ้าระวัง" if ckd_is_warn else "🟢 ปกติ")
-        ckd_badge_bg = "#FEE2E2" if ckd_is_high else ("#FEF3C7" if ckd_is_warn else "#ECFDF5")
-        ckd_badge_color = "#DC2626" if ckd_is_high else ("#D97706" if ckd_is_warn else "#047857")
-
-        with v_c4:
-            render_html(
-                f"""
-                <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:14px 16px; box-shadow:0 1px 3px rgba(15,23,42,0.02); height:100%; display:flex; flex-direction:column; justify-content:space-between;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span style="font-size:0.8rem; font-weight:700; color:#64748B;">การทำงานของไต (eGFR)</span>
-                        <span style="background:{ckd_badge_bg}; color:{ckd_badge_color}; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:999px;">{ckd_status}</span>
-                    </div>
-                    <div style="font-size:1.5rem; font-weight:800; color:#0F172A; font-family:'JetBrains Mono',monospace; line-height:1.2;">
-                        {egfr:.1f} <span style="font-size:0.8rem; font-weight:600; color:#64748B;">mL/min</span>
-                    </div>
-                    <div style="font-size:0.72rem; color:#94A3B8; margin-top:6px;">
-                        เกณฑ์ปกติ: &ge; 90 mL/min/1.73m²
-                    </div>
-                </div>
-                """
-            )
-
-        # ── 2. Comprehensive Lab Biomarkers Definition by Organ System ──
+        # ── Data Preparation & Clinical Triage Severity Classification ────────
         lab_panels_def = [
             ("🩸 ระบบระดับน้ำตาลและการเผาผลาญ", "Glycemic Control", [
-                ("fpg_mg_dl", "ระดับน้ำตาลหลังอดอาหาร", "FPG", "mg/dL", 70.0, 99.0),
-                ("hba1c_pct", "น้ำตาลสะสมในเม็ดเลือดแดง", "HbA1c", "%", 4.0, 5.6),
+                ("fpg_mg_dl", "ระดับน้ำตาลหลังอดอาหาร", "FPG", "mg/dL", 70.0, 99.0, "delta_fbs"),
+                ("hba1c_pct", "น้ำตาลสะสมในเม็ดเลือดแดง", "HbA1c", "%", 4.0, 5.6, "delta_hba1c"),
             ]),
             ("🫀 ระบบไขมันในเลือดและหลอดเลือด", "Lipid Profile", [
-                ("cholesterol_mg_dl", "คอเลสเตอรอลรวม", "Total Chol", "mg/dL", 100.0, 200.0),
-                ("triglyceride_mg_dl", "ไตรกลีเซอไรด์", "Triglyceride", "mg/dL", 30.0, 150.0),
-                ("hdl_mg_dl", "ไขมันดี", "HDL-C", "mg/dL", 40.0, 80.0),
-                ("ldl_mg_dl", "ไขมันเลว", "LDL-C", "mg/dL", 50.0, 100.0),
+                ("cholesterol_mg_dl", "คอเลสเตอรอลรวม", "Total Chol", "mg/dL", 100.0, 200.0, None),
+                ("triglyceride_mg_dl", "ไตรกลีเซอไรด์", "Triglyceride", "mg/dL", 30.0, 150.0, "delta_tg"),
+                ("hdl_mg_dl", "ไขมันดี", "HDL-C", "mg/dL", 40.0, 80.0, None),
+                ("ldl_mg_dl", "ไขมันเลว", "LDL-C", "mg/dL", 50.0, 100.0, "delta_ldl"),
             ]),
             ("🫘 การทำงานของไตและเกลือแร่", "Renal Function", [
-                ("creatinine_mg_dl", "ครีเอตินิน", "Creatinine", "mg/dL", 0.6, 1.2),
-                ("egfr", "อัตราการกรองของไต", "eGFR", "mL/min/1.73m²", 90.0, 120.0),
-                ("uacr_mg_g", "อัลบูมินรั่วในปัสสาวะ", "UACR", "mg/g", 0.0, 30.0),
-                ("uric_acid_mg_dl", "กรดยูริก", "Uric Acid", "mg/dL", 3.5, 7.2),
+                ("creatinine_mg_dl", "ครีเอตินิน", "Creatinine", "mg/dL", 0.6, 1.2, None),
+                ("egfr", "อัตราการกรองของไต", "eGFR", "mL/min/1.73m²", 90.0, 120.0, "delta_egfr"),
+                ("uacr_mg_g", "อัลบูมินรั่วในปัสสาวะ", "UACR", "mg/g", 0.0, 30.0, None),
+                ("uric_acid_mg_dl", "กรดยูริก", "Uric Acid", "mg/dL", 3.5, 7.2, None),
             ]),
             ("🧪 การทำงานของตับและการอักเสบ", "Hepatic Function", [
-                ("alt_u_l", "เอนไซม์ตับ", "ALT/SGPT", "U/L", 0.0, 40.0),
-                ("ast_u_l", "เอนไซม์ตับ", "AST/SGOT", "U/L", 0.0, 40.0),
+                ("alt_u_l", "เอนไซม์ตับ", "ALT/SGPT", "U/L", 0.0, 40.0, "delta_alt"),
+                ("ast_u_l", "เอนไซม์ตับ", "AST/SGOT", "U/L", 0.0, 40.0, None),
             ]),
             ("🩺 โลหิตวิทยาและต่อมไทรอยด์", "Hematology & Thyroid", [
-                ("tsh_miu_l", "ฮอร์โมนกระตุ้นไทรอยด์", "TSH", "mIU/L", 0.45, 4.5),
-                ("hb_g_dl", "ความเข้มข้นฮีโมโกลบิน", "Hb", "g/dL", 12.0, 16.0),
-                ("hct_pct", "เม็ดเลือดแดงอัดแน่น", "Hct", "%", 36.0, 48.0),
-                ("wbc_10_3_ul", "เม็ดเลือดขาวรวม", "WBC", "10³/µL", 4.5, 10.5),
-                ("platelet_count_10_3_ul", "เกล็ดเลือด", "Platelet", "10³/µL", 150.0, 450.0),
+                ("tsh_miu_l", "ฮอร์โมนกระตุ้นไทรอยด์", "TSH", "mIU/L", 0.45, 4.5, None),
+                ("hb_g_dl", "ความเข้มข้นฮีโมโกลบิน", "Hb", "g/dL", 12.0, 16.0, None),
+                ("hct_pct", "เม็ดเลือดแดงอัดแน่น", "Hct", "%", 36.0, 48.0, None),
+                ("wbc_10_3_ul", "เม็ดเลือดขาวรวม", "WBC", "10³/µL", 4.5, 10.5, None),
+                ("platelet_count_10_3_ul", "เกล็ดเลือด", "Platelet", "10³/µL", 150.0, 450.0, None),
             ]),
         ]
 
-        # Scan all available tests and abnormal indicators
-        all_rendered_records = []
-        abnormal_summary_list = []
-        panel_processed_data = []
+        def _classify_severity(k_name: str, val_num: float, min_r: float, max_r: float) -> Tuple[str, str, str, str]:
+            # Returns (tier: 'critical'|'moderate'|'mild'|'normal', marker_color, label_th, clinical_note)
+            if min_r <= val_num <= max_r:
+                return "normal", "#0F766E", "ปกติ", "อยู่ในเกณฑ์อ้างอิง"
+
+            # 1. Critical Tier (วิกฤต / ต้องพบแพทย์เร่งด่วน)
+            if k_name == "egfr" and val_num < 60:
+                stage = "ระยะ 4-5 (ไตวายรุนแรง)" if val_num < 30 else ("ระยะ 3b (รุนแรงปานกลาง)" if val_num < 45 else "ระยะ 3a")
+                return "critical", "#DC2626", f"🔴 วิกฤต (ไตเสื่อม {stage})", f"eGFR {val_num:.1f} mL/min เข้าสู่ภาวะไตเสื่อม ควรพบแพทย์อายุรกรรมโรคไต"
+            if k_name == "uacr_mg_g" and val_num >= 30:
+                return "critical", "#DC2626", "🔴 วิกฤต (โปรตีนรั่วในปัสสาวะ)", f"UACR {val_num:.1f} mg/g มีโปรตีนรั่ว เสี่ยงไตวายจากเบาหวาน/ความดัน"
+            if k_name == "uric_acid_mg_dl" and val_num >= 9.0:
+                return "critical", "#DC2626", "🔴 วิกฤต (ยูริกสูงมาก)", f"กรดยูริก {val_num:.1f} mg/dL เสี่ยงข้ออักเสบเกาต์เฉียบพลันและนิ่วในไต"
+            if k_name == "ldl_mg_dl" and val_num >= 190:
+                return "critical", "#DC2626", "🔴 วิกฤต (ไขมันเลวสูงรุนแรง)", f"LDL {val_num:.0f} mg/dL สูงวิกฤต เสี่ยงหลอดเลือดหัวใจตีบเฉียบพลัน"
+            if k_name == "hba1c_pct" and val_num >= 8.0:
+                return "critical", "#DC2626", "🔴 วิกฤต (เบาหวานควบคุมไม่ได้)", f"HbA1c {val_num:.1f}% สูงมาก เสี่ยงภาวะแทรกซ้อนหลอดเลือดและจอประสาทตา"
+            if k_name in ["alt_u_l", "ast_u_l"] and val_num >= 80:
+                return "critical", "#DC2626", "🔴 วิกฤต (ตับอักเสบเฉียบพลัน)", f"เอนไซม์ตับ {val_num:.0f} U/L สูงเกิน 2 เท่า ควรตรวจอัลตราซาวด์ตับ"
+
+            # 2. Moderate Tier (เฝ้าระวัง / ปรับพฤติกรรมและยา)
+            if k_name == "ldl_mg_dl" and 130 <= val_num < 190:
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (ไขมันเลวสูง)", f"LDL {val_num:.0f} mg/dL แนะนำปรับอาหารไขมันและเริ่มยาลดไขมัน"
+            if k_name == "cholesterol_mg_dl" and val_num >= 200:
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (คอเลสเตอรอลสูง)", f"คอเลสเตอรอลรวม {val_num:.0f} mg/dL เกินเกณฑ์มาตรฐาน"
+            if k_name == "triglyceride_mg_dl" and val_num >= 200:
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (ไตรกลีเซอไรด์สูง)", f"ไตรกลีเซอไรด์ {val_num:.0f} mg/dL เสี่ยงไขมันพอกตับ"
+            if k_name == "hba1c_pct" and 6.5 <= val_num < 8.0:
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (เบาหวานระยะแรก)", f"HbA1c {val_num:.1f}% เข้าเกณฑ์โรคเบาหวาน ควรตรวจติดตามระดับน้ำตาล"
+            if k_name == "fpg_mg_dl" and 126 <= val_num < 180:
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (น้ำตาลอดอาหารสูง)", f"FPG {val_num:.0f} mg/dL แนะนำงดของหวานและปรึกษาแพทย์"
+            if k_name == "egfr" and 60 <= val_num < 90:
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (การกรองไตเริ่มลดลง)", f"eGFR {val_num:.1f} mL/min ไตเสื่อมระยะ 2 เลี่ยงเค็มและยาแก้ปวด NSAIDs"
+            if k_name == "uric_acid_mg_dl" and 7.2 <= val_num < 9.0:
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (กรดยูริกสูง)", f"กรดยูริก {val_num:.1f} mg/dL ควรลดสัตว์ปีก ยอดผัก และแอลกอฮอล์"
+            if k_name in ["alt_u_l", "ast_u_l"] and 40 < val_num < 80:
+                return "moderate", "#EA580C", "🟠 เฝ้าระวัง (ตับอักเสบเล็กน้อย)", f"เอนไซม์ตับ {val_num:.0f} U/L สงสัยภาวะไขมันพอกตับ (MASLD)"
+
+            # 3. Mild Tier (เบี่ยงเบนเล็กน้อย)
+            if val_num > max_r:
+                return "mild", "#CA8A04", "🟡 เกินเกณฑ์เล็กน้อย", f"สูงกว่าค่าปกติเล็กน้อย ({val_num:.1f} vs max {max_r})"
+            else:
+                return "mild", "#CA8A04", "🟡 ต่ำกว่าเกณฑ์เล็กน้อย", f"ต่ำกว่าค่าปกติเล็กน้อย ({val_num:.1f} vs min {min_r})"
+
+        def _render_visual_range_bar(fval: float, r_min: float, r_max: float, marker_col: str) -> str:
+            span = r_max - r_min
+            d_min = max(0.0, r_min - span * 0.6)
+            d_max = r_max + span * 0.8
+            if d_max <= d_min:
+                d_max = d_min + 1.0
+            val_pct = max(3.0, min(97.0, (fval - d_min) / (d_max - d_min) * 100.0))
+            norm_start_pct = max(0.0, (r_min - d_min) / (d_max - d_min) * 100.0)
+            norm_width_pct = max(8.0, (r_max - r_min) / (d_max - d_min) * 100.0)
+            return f"""
+            <div style="position:relative; width:100%; height:16px; display:flex; align-items:center;" title="ผลตรวจ {fval:.2f} (เกณฑ์ปกติ: {r_min} - {r_max})">
+                <div style="position:absolute; width:100%; height:6px; background:#F1F5F9; border-radius:999px;"></div>
+                <div style="position:absolute; left:{norm_start_pct:.1f}%; width:{norm_width_pct:.1f}%; height:6px; background:#CBD5E1; border-radius:999px;"></div>
+                <div style="position:absolute; left:calc({val_pct:.1f}% - 6px); width:12px; height:12px; border-radius:50%; background:{marker_col}; border:2px solid white; box-shadow:0 1px 4px rgba(0,0,0,0.25); z-index:2;"></div>
+            </div>
+            """
+
+        # Pre-process all panel items
+        triage_critical = []
+        triage_moderate = []
+        triage_mild = []
+        all_table_records = []
+        panels_data = []
 
         for p_title, p_en, items in lab_panels_def:
             p_items = []
-            n_abnormal_in_panel = 0
-            for key, name_th, abbr, unit, r_min, r_max in items:
+            abnormal_in_panel = 0
+            for key, name_th, abbr, unit, r_min, r_max, delta_col in items:
                 val = lab_snap.get(key)
                 if val is not None and pd.notna(val):
                     fval = float(val)
-                    is_high = fval > r_max
-                    is_low = fval < r_min
-                    is_abnormal = is_high or is_low
-                    if is_abnormal:
-                        n_abnormal_in_panel += 1
-                        abnormal_summary_list.append(f"{name_th} ({abbr}) {fval:.1f} {unit}")
+                    tier, marker_col, lbl_th, note = _classify_severity(key, fval, r_min, r_max)
+                    delta_val = lab_snap.get(delta_col) if delta_col else None
+                    if delta_val is not None and pd.notna(delta_val):
+                        d_num = float(delta_val)
+                        if d_num > 0:
+                            trend_badge = f"<span style='font-size:0.72rem; color:#DC2626; background:#FEF2F2; padding:1px 5px; border-radius:4px; font-weight:600;'>▲ +{d_num:.1f}</span>"
+                        elif d_num < 0:
+                            trend_badge = f"<span style='font-size:0.72rem; color:#0F766E; background:#ECFDF5; padding:1px 5px; border-radius:4px; font-weight:600;'>▼ {d_num:.1f}</span>"
+                        else:
+                            trend_badge = "<span style='font-size:0.72rem; color:#94A3B8;'>— คงที่</span>"
+                    else:
+                        trend_badge = "<span style='font-size:0.72rem; color:#94A3B8;'>— แรกรับ</span>"
 
-                    st_flag = "🔴 สูงกว่าเกณฑ์" if is_high else ("🟡 ต่ำกว่าเกณฑ์" if is_low else "🟢 ปกติ")
-                    v_color = "#DC2626" if is_high else ("#D97706" if is_low else "#0F766E")
-                    b_bg = "#FEE2E2" if is_high else ("#FEF3C7" if is_low else "#ECFDF5")
-                    b_color = "#B91C1C" if is_high else ("#B45309" if is_low else "#047857")
-                    b_border = "#FECACA" if is_high else ("#FDE68A" if is_low else "#A7F3D0")
+                    if tier != "normal":
+                        abnormal_in_panel += 1
+                        item_summary = {
+                            "name": name_th,
+                            "abbr": abbr,
+                            "val": fval,
+                            "unit": unit,
+                            "note": note,
+                            "col": marker_col,
+                        }
+                        if tier == "critical":
+                            triage_critical.append(item_summary)
+                        elif tier == "moderate":
+                            triage_moderate.append(item_summary)
+                        elif tier == "mild":
+                            triage_mild.append(item_summary)
 
                     item_dict = {
                         "key": key,
@@ -816,174 +787,477 @@ def render_patient_card_view(
                         "fval": fval,
                         "r_min": r_min,
                         "r_max": r_max,
-                        "is_abnormal": is_abnormal,
-                        "st_flag": st_flag,
-                        "v_color": v_color,
-                        "b_bg": b_bg,
-                        "b_color": b_color,
-                        "b_border": b_border,
+                        "tier": tier,
+                        "marker_col": marker_col,
+                        "lbl_th": lbl_th,
+                        "note": note,
+                        "trend_badge": trend_badge,
                     }
                     p_items.append(item_dict)
-                    all_rendered_records.append({
+                    all_table_records.append({
                         "หมวดการตรวจ": p_title,
                         "รายการตรวจ": f"{name_th} ({abbr})",
                         "ผลตรวจ": f"{fval:.2f}",
                         "หน่วย": unit,
                         "ค่าอ้างอิงปกติ": f"{r_min} - {r_max}",
-                        "สถานะ": st_flag,
+                        "ระดับความเสี่ยง": lbl_th,
                     })
-            panel_processed_data.append((p_title, p_en, p_items, n_abnormal_in_panel))
 
-        total_measured = len(all_rendered_records)
-        total_abnormal = len(abnormal_summary_list)
+            panels_data.append((p_title, p_en, p_items, abnormal_in_panel))
 
-        # ── 3. Clinical Overview Banner & Interactive Filter ──
-        if total_abnormal > 0:
-            chips_html = "".join([
-                f'<span style="background:white; border:1px solid #FECACA; color:#B91C1C; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px; margin-right:6px; margin-top:4px; display:inline-block;">⚠️ {item}</span>'
-                for item in abnormal_summary_list
-            ])
-            render_html(
-                f"""
-                <div style="background:#FEF2F2; border:1px solid #FECACA; border-left:4px solid #EF4444; border-radius:10px; padding:12px 16px; margin:14px 0 16px 0; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        total_measured_count = len(all_table_records)
+        total_abnormal_count = len(triage_critical) + len(triage_moderate) + len(triage_mild)
+
+        # ── ZONE 1: Patient & Clinical Header Bar ─────────────────────────────
+        index_date_raw = lab_snap.get("index_date", None)
+        if index_date_raw and hasattr(index_date_raw, "strftime"):
+            visit_date_str = index_date_raw.strftime("%d/%m/%Y")
+        else:
+            visit_date_str = "ตรวจประเมินสุขภาพประจำรอบปี"
+
+        if len(triage_critical) > 0:
+            risk_badge_bg = "#FEF2F2"
+            risk_badge_color = "#991B1B"
+            risk_badge_border = "#FECACA"
+            risk_badge_text = "🔴 ระดับความเสี่ยงสูง: พบค่าวิกฤต ต้องพบแพทย์เฉพาะทาง"
+        elif len(triage_moderate) > 0:
+            risk_badge_bg = "#FFEDD5"
+            risk_badge_color = "#9A3412"
+            risk_badge_border = "#FED7AA"
+            risk_badge_text = "🟠 ระดับความเสี่ยงปานกลาง: เฝ้าระวังเฉพาะทางและปรับพฤติกรรม"
+        elif len(triage_mild) > 0:
+            risk_badge_bg = "#FEF9C3"
+            risk_badge_color = "#854D0E"
+            risk_badge_border = "#FEF08A"
+            risk_badge_text = "🟡 ระดับความเสี่ยงต่ำ: เบี่ยงเบนเล็กน้อย ตรวจติดตามประจำปี"
+        else:
+            risk_badge_bg = "#ECFDF5"
+            risk_badge_color = "#047857"
+            risk_badge_border = "#A7F3D0"
+            risk_badge_text = "🟢 สุขภาพสมบูรณ์: ผลตรวจทุกรายการอยู่ในเกณฑ์ปกติ"
+
+        render_html(
+            f"""
+            <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:12px 18px; margin-bottom:18px; box-shadow:0 1px 3px rgba(15,23,42,0.02); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:40px; height:40px; border-radius:10px; background:#F1F5F9; display:flex; align-items:center; justify-content:center; font-size:1.4rem;">
+                        {'👨' if gender_str == 'ชาย' else '👩'}
+                    </div>
+                    <div>
                         <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="font-size:1.15rem;">⚠️</span>
-                            <span style="font-size:0.88rem; font-weight:800; color:#991B1B;">
-                                ตรวจพบผลแล็บนอกเกณฑ์มาตรฐาน {total_abnormal} รายการ (จากทั้งหมด {total_measured} รายการตรวจ)
+                            <span style="font-size:1.2rem; font-weight:800; color:#0F172A;">{hn_display}</span>
+                            <span style="font-size:0.85rem; color:#475569; font-weight:600;">| {gender_str} {age_val:.0f} ปี</span>
+                            <span style="font-size:0.75rem; color:#64748B; background:#F8FAFC; border:1px solid #E2E8F0; padding:2px 8px; border-radius:6px;">
+                                📅 รอบตรวจ: {visit_date_str}
                             </span>
                         </div>
-                        <span style="font-size:0.75rem; color:#DC2626; font-weight:700; background:white; padding:2px 8px; border-radius:6px; border:1px solid #FECACA;">
-                            ระดับความเสี่ยง: เฝ้าระวังเฉพาะทาง
-                        </span>
-                    </div>
-                    <div style="margin-top:6px;">
-                        {chips_html}
+                        <div style="font-size:0.76rem; color:#64748B; margin-top:2px;">
+                            ประวัติรับบริการสะสม: <b>{visits_val:.0f} ครั้ง</b> • รายการตรวจที่วิเคราะห์: <b>{total_measured_count} รายการ</b>
+                        </div>
                     </div>
                 </div>
+                <div style="background:{risk_badge_bg}; border:1px solid {risk_badge_border}; color:{risk_badge_color}; padding:6px 14px; border-radius:8px; font-size:0.82rem; font-weight:700;">
+                    {risk_badge_text}
+                </div>
+            </div>
+            """
+        )
+
+        # ── ZONE 2: Asymmetric Executive Summary (Left 35% : Right 65%) ────────
+        col_triage, col_vitals = st.columns([0.36, 0.64], gap="large")
+
+        # ── Left Column: Actionable Alerts & Clinical Triage Panel ──
+        with col_triage:
+            st.markdown("##### 🚨 ลำดับความสำคัญทางคลินิก (Clinical Triage)")
+            st.caption("จัดเรียงตามระดับความเร่งด่วนทางการแพทย์ เพื่อการตัดสินใจดูแลทันที")
+
+            triage_content_html = ""
+
+            # 1. Critical Items
+            if triage_critical:
+                crit_rows = "".join([
+                    f"""
+                    <div style="background:white; border:1px solid #FECACA; border-left:4px solid #DC2626; border-radius:8px; padding:9px 12px; margin-bottom:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                            <span style="font-size:0.85rem; font-weight:800; color:#991B1B;">{item['name']} ({item['abbr']})</span>
+                            <span style="font-size:0.95rem; font-weight:800; color:#DC2626; font-family:'JetBrains Mono',monospace;">{item['val']:.1f} <span style="font-size:0.7rem; color:#64748B;">{item['unit']}</span></span>
+                        </div>
+                        <div style="font-size:0.73rem; color:#7F1D1D; margin-top:3px; line-height:1.35;">{item['note']}</div>
+                    </div>
+                    """
+                    for item in triage_critical
+                ])
+                triage_content_html += f"""
+                <div style="margin-bottom:12px;">
+                    <div style="font-size:0.76rem; font-weight:800; color:#DC2626; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
+                        <span>🔴 วิกฤต / ต้องดูแลเร่งด่วน</span>
+                        <span style="background:#FEE2E2; color:#B91C1C; padding:1px 6px; border-radius:999px; font-size:0.68rem;">{len(triage_critical)}</span>
+                    </div>
+                    {crit_rows}
+                </div>
                 """
-            )
-        else:
+            else:
+                triage_content_html += """
+                <div style="background:#F0FDF4; border:1px dashed #BBF7D0; border-radius:8px; padding:8px 12px; margin-bottom:10px; font-size:0.75rem; color:#166534;">
+                    🟢 ไม่มีผลตรวจที่อยู่ในเกณฑ์วิกฤต
+                </div>
+                """
+
+            # 2. Moderate Items
+            if triage_moderate:
+                mod_rows = "".join([
+                    f"""
+                    <div style="background:white; border:1px solid #FED7AA; border-left:4px solid #EA580C; border-radius:8px; padding:8px 12px; margin-bottom:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                            <span style="font-size:0.84rem; font-weight:800; color:#9A3412;">{item['name']} ({item['abbr']})</span>
+                            <span style="font-size:0.92rem; font-weight:800; color:#EA580C; font-family:'JetBrains Mono',monospace;">{item['val']:.1f} <span style="font-size:0.7rem; color:#64748B;">{item['unit']}</span></span>
+                        </div>
+                        <div style="font-size:0.72rem; color:#9A3412; margin-top:2px; line-height:1.35;">{item['note']}</div>
+                    </div>
+                    """
+                    for item in triage_moderate
+                ])
+                triage_content_html += f"""
+                <div style="margin-bottom:12px;">
+                    <div style="font-size:0.76rem; font-weight:800; color:#EA580C; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
+                        <span>🟠 เฝ้าระวัง / ปรับพฤติกรรมและยา</span>
+                        <span style="background:#FFEDD5; color:#C2410C; padding:1px 6px; border-radius:999px; font-size:0.68rem;">{len(triage_moderate)}</span>
+                    </div>
+                    {mod_rows}
+                </div>
+                """
+
+            # 3. Mild Items
+            if triage_mild:
+                mild_rows = "".join([
+                    f"""
+                    <div style="background:#FEFCE8; border:1px solid #FEF08A; border-radius:6px; padding:6px 10px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.78rem; font-weight:700; color:#854D0E;">{item['name']} ({item['abbr']})</span>
+                        <span style="font-size:0.82rem; font-weight:800; color:#CA8A04; font-family:'JetBrains Mono',monospace;">{item['val']:.1f} {item['unit']}</span>
+                    </div>
+                    """
+                    for item in triage_mild
+                ])
+                triage_content_html += f"""
+                <div>
+                    <div style="font-size:0.74rem; font-weight:800; color:#CA8A04; margin-bottom:4px;">
+                        🟡 ติดตามผลเล็กน้อย ({len(triage_mild)})
+                    </div>
+                    {mild_rows}
+                </div>
+                """
+
             render_html(
                 f"""
-                <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-left:4px solid #10B981; border-radius:10px; padding:12px 16px; margin:14px 0 16px 0; display:flex; align-items:center; gap:8px;">
-                    <span style="font-size:1.15rem;">🟢</span>
-                    <span style="font-size:0.88rem; font-weight:800; color:#166534;">
-                        ผลการตรวจทางห้องปฏิบัติการทุกรายการอยู่ในเกณฑ์ปกติ ({total_measured} รายการ)
-                    </span>
+                <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:14px; min-height:360px;">
+                    {triage_content_html}
                 </div>
                 """
             )
 
-        f_col1, f_col2 = st.columns([2.5, 1.5])
-        with f_col1:
-            filter_mode = st.radio(
-                "ตัวกรองการแสดงผลผลตรวจ (Filter View):",
-                ["📋 แสดงผลตรวจทั้งหมด", "⚠️ เฉพาะค่าที่ผิดปกติ", "🟢 เฉพาะค่าปกติ"],
-                horizontal=True,
-                key=f"lab_filter_radio_{sel_pid_str}",
-            )
-        with f_col2:
-            st.caption(f"แสดงข้อมูลเวชระเบียนของผู้ป่วย: **{hn_display}** ({gender_str} {age_val:.0f} ปี)")
+        # ── Right Column: 4 Key Vitals & Metabolic Snapshot (Grid 2x2 with Real Severity & Trends) ──
+        with col_vitals:
+            st.markdown("##### 🫀 สัญญาณชีพและเมตาบอลิกหลัก (Key Vitals & Metabolic Snapshot)")
+            st.caption("ประเมินระดับความรุนแรงตามมาตรฐานสากล พร้อมแนวโน้มเปรียบเทียบจากครั้งก่อน (Trend Analysis)")
 
-        # ── 4. Minimalist Organ Panel Cards Grid (2 Large Columns) ──
-        col_organ_l, col_organ_r = st.columns(2, gap="large")
-
-        # Split panels into Left and Right Columns
-        panels_left = [panel_processed_data[0], panel_processed_data[1], panel_processed_data[4]]
-        panels_right = [panel_processed_data[2], panel_processed_data[3]]
-
-        def _render_organ_panel_card(p_title: str, p_en: str, items: List[Dict[str, Any]], n_abn: int) -> None:
-            # Filter items based on user choice
-            if "เฉพาะค่าที่ผิดปกติ" in filter_mode:
-                filtered_items = [it for it in items if it["is_abnormal"]]
-            elif "เฉพาะค่าปกติ" in filter_mode:
-                filtered_items = [it for it in items if not it["is_abnormal"]]
+            # Vitals Calculations
+            # 1. BP Severity
+            if sys_val >= 160 or dia_bp_val >= 100:
+                bp_col, bp_bg, bp_bd = "#DC2626", "#FEE2E2", "#FECACA"
+                bp_lbl = "🔴 ความดันสูงมาก (Stage 2)"
+            elif sys_val >= 140 or dia_bp_val >= 90:
+                bp_col, bp_bg, bp_bd = "#EA580C", "#FFEDD5", "#FED7AA"
+                bp_lbl = "🟠 ความดันสูง (Stage 1)"
+            elif sys_val >= 130 or dia_bp_val >= 85:
+                bp_col, bp_bg, bp_bd = "#CA8A04", "#FEF9C3", "#FEF08A"
+                bp_lbl = "🟡 เฝ้าระวัง (Pre-HT)"
             else:
-                filtered_items = items
+                bp_col, bp_bg, bp_bd = "#0F766E", "#ECFDF5", "#A7F3D0"
+                bp_lbl = "🟢 ปกติ (Optimal)"
 
-            if not filtered_items:
-                if "เฉพาะค่าที่ผิดปกติ" in filter_mode:
-                    badge_html = '<span style="background:#ECFDF5; color:#047857; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px; border:1px solid #A7F3D0;">🟢 ปกติทุกค่า</span>'
+            d_sbp = lab_snap.get("delta_sbp")
+            if d_sbp is not None and pd.notna(d_sbp):
+                d_sbp_f = float(d_sbp)
+                bp_trend = f"<span style='color:{'#DC2626' if d_sbp_f > 0 else '#0F766E'}; font-weight:700;'>{'▲ +' if d_sbp_f > 0 else '▼ '}{d_sbp_f:.1f} mmHg</span> จากครั้งก่อน"
+            else:
+                bp_trend = "<span style='color:#94A3B8;'>— ตรวจครั้งแรก</span>"
+
+            # 2. BMI Severity
+            if bmi_val >= 30.0:
+                bmi_col, bmi_bg, bmi_bd = "#DC2626", "#FEE2E2", "#FECACA"
+                bmi_lbl = "🔴 อ้วนระดับ 2 (Severe)"
+            elif bmi_val >= 25.0:
+                bmi_col, bmi_bg, bmi_bd = "#EA580C", "#FFEDD5", "#FED7AA"
+                bmi_lbl = "🟠 อ้วน (Obesity)"
+            elif bmi_val >= 23.0:
+                bmi_col, bmi_bg, bmi_bd = "#CA8A04", "#FEF9C3", "#FEF08A"
+                bmi_lbl = "🟡 ท้วม (Overweight)"
+            else:
+                bmi_col, bmi_bg, bmi_bd = "#0F766E", "#ECFDF5", "#A7F3D0"
+                bmi_lbl = "🟢 ปกติ (Normal)"
+
+            d_bmi = lab_snap.get("delta_bmi")
+            if d_bmi is not None and pd.notna(d_bmi):
+                d_bmi_f = float(d_bmi)
+                bmi_trend = f"<span style='color:{'#DC2626' if d_bmi_f > 0 else '#0F766E'}; font-weight:700;'>{'▲ +' if d_bmi_f > 0 else '▼ '}{d_bmi_f:.1f} kg/m²</span> จากครั้งก่อน"
+            else:
+                bmi_trend = "<span style='color:#94A3B8;'>— ตรวจครั้งแรก</span>"
+
+            # 3. HbA1c & FPG Severity
+            fpg_v = float(lab_snap.get("fpg_mg_dl", 92))
+            hba1c_v = float(lab_snap.get("hba1c_pct", 5.4))
+            if hba1c_v >= 8.0 or fpg_v >= 180:
+                dm_col, dm_bg, dm_bd = "#DC2626", "#FEE2E2", "#FECACA"
+                dm_lbl = "🔴 เบาหวานควบคุมไม่ได้"
+            elif hba1c_v >= 6.5 or fpg_v >= 126:
+                dm_col, dm_bg, dm_bd = "#EA580C", "#FFEDD5", "#FED7AA"
+                dm_lbl = "🟠 เข้าเกณฑ์เบาหวาน"
+            elif hba1c_v >= 5.7 or fpg_v >= 100:
+                dm_col, dm_bg, dm_bd = "#CA8A04", "#FEF9C3", "#FEF08A"
+                dm_lbl = "🟡 เสี่ยงเบาหวาน (Pre-DM)"
+            else:
+                dm_col, dm_bg, dm_bd = "#0F766E", "#ECFDF5", "#A7F3D0"
+                dm_lbl = "🟢 ปกติ (Normal)"
+
+            d_hba1c = lab_snap.get("delta_hba1c")
+            if d_hba1c is not None and pd.notna(d_hba1c):
+                d_hba1c_f = float(d_hba1c)
+                dm_trend = f"<span style='color:{'#DC2626' if d_hba1c_f > 0 else '#0F766E'}; font-weight:700;'>{'▲ +' if d_hba1c_f > 0 else '▼ '}{d_hba1c_f:.1f}%</span> จากครั้งก่อน"
+            else:
+                dm_trend = "<span style='color:#94A3B8;'>— ตรวจครั้งแรก</span>"
+
+            # 4. Kidney eGFR Severity
+            egfr_v = float(lab_snap.get("egfr", 88))
+            if egfr_v < 60:
+                stg = "ระยะ 4-5" if egfr_v < 30 else ("ระยะ 3b" if egfr_v < 45 else "ระยะ 3a")
+                kid_col, kid_bg, kid_bd = "#DC2626", "#FEE2E2", "#FECACA"
+                kid_lbl = f"🔴 ไตเสื่อม ({stg})"
+            elif egfr_v < 90:
+                kid_col, kid_bg, kid_bd = "#EA580C", "#FFEDD5", "#FED7AA"
+                kid_lbl = "🟠 เฝ้าระวัง (ไตเสื่อมระยะ 2)"
+            else:
+                kid_col, kid_bg, kid_bd = "#0F766E", "#ECFDF5", "#A7F3D0"
+                kid_lbl = "🟢 ปกติ (eGFR ≥ 90)"
+
+            d_egfr = lab_snap.get("delta_egfr")
+            if d_egfr is not None and pd.notna(d_egfr):
+                d_egfr_f = float(d_egfr)
+                kid_trend = f"<span style='color:{'#DC2626' if d_egfr_f < 0 else '#0F766E'}; font-weight:700;'>{'▼ ' if d_egfr_f < 0 else '▲ +'}{d_egfr_f:.1f} mL/min</span> จากครั้งก่อน"
+            else:
+                kid_trend = "<span style='color:#94A3B8;'>— ตรวจครั้งแรก</span>"
+
+            # Render 2x2 Grid
+            grid_r1_c1, grid_r1_c2 = st.columns(2)
+            with grid_r1_c1:
+                render_html(
+                    f"""
+                    <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:15px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(15,23,42,0.02);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span style="font-size:0.8rem; font-weight:700; color:#64748B;">ความดันโลหิต (BP)</span>
+                            <span style="background:{bp_bg}; color:{bp_col}; border:1px solid {bp_bd}; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:999px;">{bp_lbl}</span>
+                        </div>
+                        <div style="font-size:1.6rem; font-weight:800; color:#0F172A; font-family:'JetBrains Mono',monospace; line-height:1.2;">
+                            {sys_val:.0f}/{dia_bp_val:.0f} <span style="font-size:0.85rem; font-weight:600; color:#64748B;">mmHg</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:0.72rem; color:#94A3B8; border-top:1px solid #F1F5F9; padding-top:6px;">
+                            <span>เกณฑ์ปกติ: &lt; 120/80</span>
+                            <span>{bp_trend}</span>
+                        </div>
+                    </div>
+                    """
+                )
+            with grid_r1_c2:
+                render_html(
+                    f"""
+                    <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:15px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(15,23,42,0.02);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span style="font-size:0.8rem; font-weight:700; color:#64748B;">ดัชนีมวลกาย (BMI)</span>
+                            <span style="background:{bmi_bg}; color:{bmi_col}; border:1px solid {bmi_bd}; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:999px;">{bmi_lbl}</span>
+                        </div>
+                        <div style="font-size:1.6rem; font-weight:800; color:#0F172A; font-family:'JetBrains Mono',monospace; line-height:1.2;">
+                            {bmi_val:.1f} <span style="font-size:0.85rem; font-weight:600; color:#64748B;">kg/m²</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:0.72rem; color:#94A3B8; border-top:1px solid #F1F5F9; padding-top:6px;">
+                            <span>เกณฑ์ปกติ: 18.5 - 22.9</span>
+                            <span>{bmi_trend}</span>
+                        </div>
+                    </div>
+                    """
+                )
+
+            grid_r2_c1, grid_r2_c2 = st.columns(2)
+            with grid_r2_c1:
+                render_html(
+                    f"""
+                    <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:15px 16px; box-shadow:0 1px 3px rgba(15,23,42,0.02);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span style="font-size:0.8rem; font-weight:700; color:#64748B;">น้ำตาลสะสม (HbA1c & FPG)</span>
+                            <span style="background:{dm_bg}; color:{dm_col}; border:1px solid {dm_bd}; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:999px;">{dm_lbl}</span>
+                        </div>
+                        <div style="font-size:1.6rem; font-weight:800; color:#0F172A; font-family:'JetBrains Mono',monospace; line-height:1.2;">
+                            {hba1c_v:.1f}% <span style="font-size:0.85rem; font-weight:600; color:#64748B;">({fpg_v:.0f} mg/dL)</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:0.72rem; color:#94A3B8; border-top:1px solid #F1F5F9; padding-top:6px;">
+                            <span>เกณฑ์ปกติ: &lt; 5.7% (FPG &lt; 100)</span>
+                            <span>{dm_trend}</span>
+                        </div>
+                    </div>
+                    """
+                )
+            with grid_r2_c2:
+                render_html(
+                    f"""
+                    <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:15px 16px; box-shadow:0 1px 3px rgba(15,23,42,0.02);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span style="font-size:0.8rem; font-weight:700; color:#64748B;">การทำงานของไต (eGFR)</span>
+                            <span style="background:{kid_bg}; color:{kid_col}; border:1px solid {kid_bd}; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:999px;">{kid_lbl}</span>
+                        </div>
+                        <div style="font-size:1.6rem; font-weight:800; color:#0F172A; font-family:'JetBrains Mono',monospace; line-height:1.2;">
+                            {egfr_v:.1f} <span style="font-size:0.85rem; font-weight:600; color:#64748B;">mL/min</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:0.72rem; color:#94A3B8; border-top:1px solid #F1F5F9; padding-top:6px;">
+                            <span>เกณฑ์ปกติ: &ge; 90 mL/min</span>
+                            <span>{kid_trend}</span>
+                        </div>
+                    </div>
+                    """
+                )
+
+        st.markdown("---")
+
+        # ── ZONE 3: Interactive Lab Details Matrix (Visual Range & Organ Panels) ──
+        st.markdown("##### 🔬 แผงวิเคราะห์ผลตรวจทางห้องปฏิบัติการ (Interactive Visual Range Matrix)")
+        st.caption("แถบสเกลวัดระดับ (Visual Range Bar) ช่วยให้เห็นทันทีว่าผลตรวจอยู่ในช่วงปกติ (แถบสีเทา) หรือเบี่ยงเบนออกนอกเกณฑ์")
+
+        filter_c1, filter_c2 = st.columns([2.5, 1.5])
+        with filter_c1:
+            mat_filter = st.radio(
+                "ตัวกรองการแสดงผล:",
+                [
+                    f"📋 แสดงทั้งหมด ({total_measured_count} รายการ)",
+                    f"⚠️ เฉพาะค่าผิดปกติ ({total_abnormal_count} รายการ)",
+                    f"🟢 เฉพาะค่าปกติ ({total_measured_count - total_abnormal_count} รายการ)",
+                ],
+                horizontal=True,
+                key=f"matrix_filter_{sel_pid_str}",
+            )
+        with filter_c2:
+            search_query = st.text_input(
+                "🔍 ค้นหารายการตรวจ (Search Lab):",
+                placeholder="เช่น LDL, eGFR, กรดยูริก, ตับ...",
+                key=f"search_lab_{sel_pid_str}",
+            ).strip().lower()
+
+        # Render 2-Column Organ Panels Grid with Visual Range Bars
+        grid_l, grid_r = st.columns(2, gap="large")
+        panels_l = [panels_data[0], panels_data[1], panels_data[4]]
+        panels_r = [panels_data[2], panels_data[3]]
+
+        def _render_matrix_panel(title_th: str, title_en: str, items: List[Dict[str, Any]], n_abn: int) -> None:
+            # Filter by mode and search query
+            filtered = []
+            for it in items:
+                # Severity filter
+                if "เฉพาะค่าผิดปกติ" in mat_filter and it["tier"] == "normal":
+                    continue
+                if "เฉพาะค่าปกติ" in mat_filter and it["tier"] != "normal":
+                    continue
+                # Search filter
+                if search_query:
+                    match_s = (search_query in it["name_th"].lower()) or (search_query in it["abbr"].lower())
+                    if not match_s:
+                        continue
+                filtered.append(it)
+
+            if not filtered:
+                if "เฉพาะค่าผิดปกติ" in mat_filter or search_query:
                     render_html(
                         f"""
-                        <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; margin-bottom:16px; overflow:hidden; box-shadow:0 1px 3px rgba(15,23,42,0.02);">
+                        <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; margin-bottom:14px; overflow:hidden;">
                             <div style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
                                 <div>
-                                    <span style="font-size:0.9rem; font-weight:800; color:#0F172A;">{p_title}</span>
-                                    <span style="font-size:0.72rem; color:#64748B; margin-left:4px;">({p_en})</span>
+                                    <span style="font-size:0.88rem; font-weight:800; color:#0F172A;">{title_th}</span>
+                                    <span style="font-size:0.72rem; color:#64748B;">({title_en})</span>
                                 </div>
-                                {badge_html}
+                                <span style="font-size:0.72rem; color:#047857; background:#ECFDF5; border:1px solid #A7F3D0; padding:2px 8px; border-radius:6px; font-weight:700;">🟢 ปกติทุกค่า</span>
                             </div>
-                            <div style="padding:14px 16px; color:#64748B; font-size:0.8rem; text-align:center;">
-                                ไม่มีรายการที่ผิดปกติในหมวดหมู่นี้
+                            <div style="padding:12px 16px; font-size:0.78rem; color:#94A3B8; text-align:center;">
+                                ไม่มีรายการที่ตรงกับเงื่อนไขในหมวดนี้
                             </div>
                         </div>
                         """
                     )
                 return
 
-            badge_html = (
-                f'<span style="background:#FEE2E2; color:#B91C1C; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px; border:1px solid #FECACA;">⚠️ ผิดปกติ {n_abn} รายการ</span>'
+            badge_card = (
+                f'<span style="background:#FEE2E2; color:#B91C1C; border:1px solid #FECACA; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px;">⚠️ ผิดปกติ {n_abn} รายการ</span>'
                 if n_abn > 0 else
-                f'<span style="background:#ECFDF5; color:#047857; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px; border:1px solid #A7F3D0;">🟢 ปกติทุกค่า</span>'
+                f'<span style="background:#ECFDF5; color:#047857; border:1px solid #A7F3D0; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px;">🟢 ปกติทุกค่า</span>'
             )
 
-            rows_html = ""
-            for idx, it in enumerate(filtered_items):
-                is_last = (idx == len(filtered_items) - 1)
-                border_bottom = "none" if is_last else "1px solid #F1F5F9"
-                rows_html += f"""
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:11px 16px; border-bottom:{border_bottom};">
-                    <div>
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <span style="font-size:0.86rem; font-weight:700; color:#1E293B;">{it['name_th']}</span>
-                            <span style="font-size:0.7rem; color:#64748B; background:#F1F5F9; padding:1px 6px; border-radius:4px; font-weight:600;">{it['abbr']}</span>
+            rows_code = ""
+            for idx, it in enumerate(filtered):
+                is_last_row = (idx == len(filtered) - 1)
+                b_btm = "none" if is_last_row else "1px solid #F1F5F9"
+                range_bar_html = _render_visual_range_bar(it["fval"], it["r_min"], it["r_max"], it["marker_col"])
+
+                rows_code += f"""
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:{b_btm}; gap:12px;">
+                    <!-- Col 1 (35%): Name & Reference -->
+                    <div style="flex: 0 0 34%;">
+                        <div style="display:flex; align-items:center; gap:5px;">
+                            <span style="font-size:0.84rem; font-weight:700; color:#1E293B;">{it['name_th']}</span>
+                            <span style="font-size:0.68rem; color:#64748B; background:#F1F5F9; padding:1px 5px; border-radius:4px; font-weight:600;">{it['abbr']}</span>
                         </div>
-                        <div style="font-size:0.72rem; color:#94A3B8; margin-top:3px;">
+                        <div style="font-size:0.7rem; color:#94A3B8; margin-top:2px;">
                             เกณฑ์ปกติ: {it['r_min']} - {it['r_max']} {it['unit']}
                         </div>
                     </div>
-                    <div style="display:flex; align-items:center; gap:12px; text-align:right;">
-                        <div style="font-size:1.1rem; font-weight:800; color:{it['v_color']}; font-family:'JetBrains Mono',monospace;">
+                    <!-- Col 2 (38%): Visual Range Bar -->
+                    <div style="flex: 1 1 38%; padding:0 8px;">
+                        {range_bar_html}
+                    </div>
+                    <!-- Col 3 (28%): Value & Trend -->
+                    <div style="flex: 0 0 28%; text-align:right;">
+                        <div style="font-size:1.05rem; font-weight:800; color:{it['marker_col']}; font-family:'JetBrains Mono',monospace; line-height:1.2;">
                             {it['fval']:.2f} <span style="font-size:0.72rem; color:#64748B; font-weight:600;">{it['unit']}</span>
                         </div>
-                        <span style="background:{it['b_bg']}; color:{it['b_color']}; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px; min-width:86px; text-align:center; border:1px solid {it['b_border']};">
-                            {it['st_flag']}
-                        </span>
+                        <div style="margin-top:2px;">
+                            {it['trend_badge']}
+                        </div>
                     </div>
                 </div>
                 """
 
             render_html(
                 f"""
-                <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; margin-bottom:16px; overflow:hidden; box-shadow:0 1px 3px rgba(15,23,42,0.02);">
+                <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; margin-bottom:14px; overflow:hidden; box-shadow:0 1px 3px rgba(15,23,42,0.02);">
                     <div style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
                         <div>
-                            <span style="font-size:0.9rem; font-weight:800; color:#0F172A;">{p_title}</span>
-                            <span style="font-size:0.72rem; color:#64748B; margin-left:4px;">({p_en})</span>
+                            <span style="font-size:0.88rem; font-weight:800; color:#0F172A;">{title_th}</span>
+                            <span style="font-size:0.72rem; color:#64748B;">({title_en})</span>
                         </div>
-                        {badge_html}
+                        {badge_card}
                     </div>
                     <div>
-                        {rows_html}
+                        {rows_code}
                     </div>
                 </div>
                 """
             )
 
-        with col_organ_l:
-            for p_title, p_en, items, n_abn in panels_left:
-                _render_organ_panel_card(p_title, p_en, items, n_abn)
+        with grid_l:
+            for p_th, p_en, items, n_abn in panels_l:
+                _render_matrix_panel(p_th, p_en, items, n_abn)
 
-        with col_organ_r:
-            for p_title, p_en, items, n_abn in panels_right:
-                _render_organ_panel_card(p_title, p_en, items, n_abn)
+        with grid_r:
+            for p_th, p_en, items, n_abn in panels_r:
+                _render_matrix_panel(p_th, p_en, items, n_abn)
 
-        # ── 5. Full Table View Expander (for Raw Inspection & Export) ──
+        # ── Export & Raw Data Table Accordion ──
         with st.expander("📊 ดูข้อมูลแบบตารางสรุปครบทุกรายการ (Table View & Export)", expanded=False):
-            if all_rendered_records:
-                st.dataframe(pd.DataFrame(all_rendered_records), use_container_width=True, hide_index=True)
+            if all_table_records:
+                st.dataframe(pd.DataFrame(all_table_records), use_container_width=True, hide_index=True)
 
     # ==========================================================================
     # TAB 3: 🤖 เหตุผล AI & บทสนทนานำเสนอ
@@ -1048,6 +1322,70 @@ def render_patient_card_view(
                 "Dyslipidemia (Dx)": 1.0 if _is_dlp else 0.0,
             }
 
+            feat_th_map = {
+                "Age": ("อายุ (Age)", f"{age_val:.0f} ปี"),
+                "Systolic BP": ("ความดันตัวบน (Systolic BP)", f"{sys_val:.0f} mmHg"),
+                "BMI": ("ดัชนีมวลกาย (BMI)", f"{bmi_val:.1f} kg/m²"),
+                "Prior Visits (12M)": ("ความถี่รับบริการ (Prior Visits)", f"{visits_val:.0f} ครั้ง/ปี"),
+                "Gender_Code": ("เพศกำเนิด (Biological Sex)", gender_str),
+                "Diabetes (Dx)": ("ประวัติโรคเบาหวาน (Diabetes)", "มีประวัติ" if _is_dm else "ไม่พบประวัติ"),
+                "Hypertension (Dx)": ("ประวัติความดันสูง (Hypertension)", "มีประวัติ" if _is_ht else "ไม่พบประวัติ"),
+                "Dyslipidemia (Dx)": ("ประวัติไขมันในเลือด (Dyslipidemia)", "มีประวัติ" if _is_dlp else "ไม่พบประวัติ"),
+            }
+
+            max_abs_shap = max(0.01, float(np.max(np.abs(vals_arr))))
+            driver_rows_html = []
+            for i in np.argsort(np.abs(vals_arr))[::-1]:
+                fn = f_names[i]
+                sv = float(vals_arr[i])
+                pct = min(100.0, abs(sv) / max_abs_shap * 100.0)
+                label_th, val_th = feat_th_map.get(fn, (fn, str(feat_val_map.get(fn, ""))))
+                
+                if sv >= 0:
+                    bar_inner = f'<div style="width:50%;"></div><div style="width:{pct*0.5:.1f}%; background:#EF4444; border-radius:0 3px 3px 0;"></div>'
+                    badge_str = f'<span style="color:#DC2626; font-weight:700; font-size:0.75rem; font-family:monospace;">+{sv:.3f}</span>'
+                else:
+                    bar_inner = f'<div style="width:{pct*0.5:.1f}%; background:#3B82F6; border-radius:3px 0 0 3px;"></div><div style="width:50%;"></div>'
+                    badge_str = f'<span style="color:#2563EB; font-weight:700; font-size:0.75rem; font-family:monospace;">{sv:.3f}</span>'
+
+                driver_rows_html.append(
+                    f"""
+                    <div style="background:white; border:1px solid #E2E8F0; border-radius:8px; padding:7px 10px; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                        <div style="flex:1; min-width:140px;">
+                            <div style="font-size:0.78rem; font-weight:700; color:#1E293B;">{label_th}</div>
+                            <div style="font-size:0.72rem; color:#64748B;">ค่าตรวจ: <b>{val_th}</b></div>
+                        </div>
+                        <div style="flex:1.2; display:flex; align-items:center; gap:8px;">
+                            <div style="flex:1; height:8px; background:#F1F5F9; border-radius:4px; display:flex; align-items:center; position:relative; overflow:hidden;">
+                                <div style="position:absolute; left:50%; width:1px; height:100%; background:#94A3B8; z-index:1;"></div>
+                                {bar_inner}
+                            </div>
+                            <div style="width:52px; text-align:right;">
+                                {badge_str}
+                            </div>
+                        </div>
+                    </div>
+                    """
+                )
+
+            drivers_joined = "".join(driver_rows_html)
+            render_html(
+                f"""
+                <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:12px; margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-size:0.8rem; font-weight:700; color:#0F172A;">📊 น้ำหนักปัจจัยทางคลินิกรายบุคคล (Clinical Drivers Breakdown)</span>
+                        <span style="font-size:0.72rem; color:#64748B;">Base Value = <b>{base_v:.2f}</b></span>
+                    </div>
+                    {drivers_joined}
+                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#64748B; padding-top:6px; margin-top:4px; border-top:1px dashed #CBD5E1;">
+                        <span style="color:#2563EB;">◀ สีน้ำเงิน (-) ลดโอกาสรับบริการ</span>
+                        <span style="color:#DC2626;">สีแดง (+) เพิ่มโอกาสรับบริการ ▶</span>
+                    </div>
+                </div>
+                """
+            )
+
+            # Interactive Plotly Waterfall in Expander
             order_w = np.argsort(np.abs(vals_arr))
             labels_w = []
             for i in order_w:
@@ -1076,11 +1414,11 @@ def render_patient_card_view(
                 yaxis=dict(title=""),
                 plot_bgcolor="white",
                 paper_bgcolor="white",
-                height=340,
+                height=320,
                 margin=dict(l=10, r=45, t=35, b=25),
             )
-            st.plotly_chart(fig_shap, use_container_width=True)
-            st.caption("ℹ️ แถบสีแดง (+) เพิ่มความน่าจะเป็นในการตรวจสุขภาพ | แถบสีน้ำเงิน (-) ลดความน่าจะเป็นเทียบกับฐานทั่วไป")
+            with st.expander("📈 ดูกราฟแท่งเปรียบเทียบเต็มรูปแบบ (SHAP Plotly Chart)", expanded=False):
+                st.plotly_chart(fig_shap, use_container_width=True, key=f"pic_tab3_shap_plotly_{sel_pid_str}", config={"responsive": True, "displayModeBar": False})
 
         with col_talk_track:
             st.markdown("##### 💬 บทสนทนาแนะนำสำหรับเจ้าหน้าที่ (Caring Talk Track)")
