@@ -125,6 +125,188 @@ def show_quotation_print_dialog(
     st.info("💡 สามารถกดปุ่มพิมพ์ (Ctrl+P) หรือบันทึกภาพหน้าจอนี้เพื่อส่งต่อให้ผู้รับบริการหรือทีมขายได้ทันที")
 
 
+def _render_visual_range_bar(fval: float, r_min: float, r_max: float, marker_col: str) -> str:
+    """Renders a normalized visual scale bar with shaded normal reference band and pinpoint marker."""
+    span = r_max - r_min
+    d_min = max(0.0, r_min - span * 0.6)
+    d_max = r_max + span * 0.8
+    if d_max <= d_min:
+        d_max = d_min + 1.0
+    val_pct = max(3.0, min(97.0, (fval - d_min) / (d_max - d_min) * 100.0))
+    norm_start_pct = max(0.0, (r_min - d_min) / (d_max - d_min) * 100.0)
+    norm_width_pct = max(8.0, (r_max - r_min) / (d_max - d_min) * 100.0)
+    return f"""
+    <div style="position:relative; width:100%; height:16px; display:flex; align-items:center;" title="ผลตรวจ {fval:.2f} (เกณฑ์ปกติ: {r_min} - {r_max})">
+        <div style="position:absolute; width:100%; height:6px; background:#F1F5F9; border-radius:999px;"></div>
+        <div style="position:absolute; left:{norm_start_pct:.1f}%; width:{norm_width_pct:.1f}%; height:6px; background:#CBD5E1; border-radius:999px;"></div>
+        <div style="position:absolute; left:calc({val_pct:.1f}% - 6px); width:12px; height:12px; border-radius:50%; background:{marker_col}; border:2px solid white; box-shadow:0 1px 4px rgba(0,0,0,0.25); z-index:2;"></div>
+    </div>
+    """
+
+
+@st.fragment
+def render_zone3_lab_matrix(
+    panels_data: List[Tuple[str, str, List[Dict[str, Any]], int, int, int]],
+    total_measured_count: int,
+    total_abnormal_count: int,
+    sel_pid_str: str,
+    all_table_records: List[Dict[str, Any]],
+) -> None:
+    """
+    Renders Zone 3 Interactive Lab Matrix as an isolated fragment.
+    Filter changes and searches update ONLY this section with 0-flicker UX.
+    Organ cards are dynamically sorted by clinical risk so the most critical organ is top-left.
+    Rows use CSS Grid (35% 43% 22%) for pixel-perfect vertical alignment like a hospital EMR.
+    """
+    st.markdown("##### 🔬 แผงวิเคราะห์ผลตรวจทางห้องปฏิบัติการ (Interactive Visual Range Matrix)")
+    st.caption("แถบสเกลวัดระดับ (Visual Range Bar) ช่วยให้เห็นทันทีว่าผลตรวจอยู่ในช่วงปกติ (แถบสีเทา) หรือเบี่ยงเบนออกนอกเกณฑ์")
+
+    filter_c1, filter_c2 = st.columns([2.5, 1.5])
+    with filter_c1:
+        mat_filter = st.radio(
+            "ตัวกรองการแสดงผล:",
+            [
+                f"📋 แสดงทั้งหมด ({total_measured_count} รายการ)",
+                f"⚠️ เฉพาะค่าผิดปกติ ({total_abnormal_count} รายการ)",
+                f"🟢 เฉพาะค่าปกติ ({total_measured_count - total_abnormal_count} รายการ)",
+            ],
+            horizontal=True,
+            key=f"matrix_filter_{sel_pid_str}",
+        )
+    with filter_c2:
+        search_query = st.text_input(
+            "🔍 ค้นหารายการตรวจ (Search Lab):",
+            placeholder="เช่น LDL, eGFR, กรดยูริก, ตับ...",
+            key=f"search_lab_{sel_pid_str}",
+        ).strip().lower()
+
+    # Dynamic Section Sorting (จัดเรียงการ์ดอัตโนมัติตาม Risk Score):
+    # ดันหมวดหมู่ที่มีค่า critical / risk score สูงสุดขึ้นไปอยู่มุมซ้ายบนสุดเสมอ
+    sorted_panels = sorted(
+        panels_data,
+        key=lambda p: (p[4], p[5], p[3]),
+        reverse=True,
+    )
+
+    panels_l = [p for idx, p in enumerate(sorted_panels) if idx % 2 == 0]
+    panels_r = [p for idx, p in enumerate(sorted_panels) if idx % 2 == 1]
+
+    def _render_matrix_panel(title_th: str, title_en: str, items: List[Dict[str, Any]], n_abn: int, crit_c: int, is_top_priority: bool) -> None:
+        filtered = []
+        for it in items:
+            if "เฉพาะค่าผิดปกติ" in mat_filter and it["tier"] == "normal":
+                continue
+            if "เฉพาะค่าปกติ" in mat_filter and it["tier"] != "normal":
+                continue
+            if search_query:
+                match_s = (search_query in it["name_th"].lower()) or (search_query in it["abbr"].lower())
+                if not match_s:
+                    continue
+            filtered.append(it)
+
+        if not filtered:
+            if "เฉพาะค่าผิดปกติ" in mat_filter or search_query:
+                render_html(
+                    f"""
+                    <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; margin-bottom:14px; overflow:hidden;">
+                        <div style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <span style="font-size:0.88rem; font-weight:800; color:#0F172A;">{title_th}</span>
+                                <span style="font-size:0.72rem; color:#64748B;">({title_en})</span>
+                            </div>
+                            <span style="font-size:0.72rem; color:#047857; background:#ECFDF5; border:1px solid #A7F3D0; padding:2px 8px; border-radius:6px; font-weight:700;">🟢 ปกติทุกค่า</span>
+                        </div>
+                        <div style="padding:12px 16px; font-size:0.78rem; color:#94A3B8; text-align:center;">
+                            ไม่มีรายการที่ตรงกับเงื่อนไขในหมวดนี้
+                        </div>
+                    </div>
+                    """
+                )
+            return
+
+        if crit_c > 0:
+            border_left_style = "border-left: 4px solid #DC2626;"
+            badge_card = f'<span style="background:#FEE2E2; color:#B91C1C; border:1px solid #FECACA; font-size:0.72rem; font-weight:800; padding:2px 8px; border-radius:6px;">🔴 วิกฤต {crit_c} | รวมผิดปกติ {n_abn}</span>'
+        elif n_abn > 0:
+            border_left_style = "border-left: 4px solid #EA580C;"
+            badge_card = f'<span style="background:#FFEDD5; color:#9A3412; border:1px solid #FED7AA; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px;">⚠️ ผิดปกติ {n_abn} รายการ</span>'
+        else:
+            border_left_style = "border-left: 4px solid #10B981;"
+            badge_card = f'<span style="background:#ECFDF5; color:#047857; border:1px solid #A7F3D0; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px;">🟢 ปกติทุกค่า</span>'
+
+        priority_tag = (
+            '<span style="font-size:0.68rem; background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; padding:1px 6px; border-radius:4px; font-weight:700; margin-left:6px;">🚨 ลำดับความสำคัญสูงสุด</span>'
+            if is_top_priority and crit_c > 0 else ""
+        )
+
+        # CSS Grid: grid-template-columns: 35% 43% 22% for pixel-perfect vertical alignment like hospital EMR
+        rows_code = ""
+        for idx, it in enumerate(filtered):
+            is_last_row = (idx == len(filtered) - 1)
+            b_btm = "none" if is_last_row else "1px solid #F1F5F9"
+            range_bar_html = _render_visual_range_bar(it["fval"], it["r_min"], it["r_max"], it["marker_col"])
+
+            rows_code += f"""
+            <div style="display:grid; grid-template-columns: 35% 43% 22%; align-items:center; padding:9px 14px; border-bottom:{b_btm}; gap:8px;">
+                <!-- Col 1 (35%): Name & Reference -->
+                <div style="min-width:0;">
+                    <div style="display:flex; align-items:center; gap:5px; flex-wrap:nowrap;">
+                        <span style="font-size:0.84rem; font-weight:700; color:#1E293B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{it['name_th']}">{it['name_th']}</span>
+                        <span style="font-size:0.68rem; color:#64748B; background:#F1F5F9; padding:1px 5px; border-radius:4px; font-weight:600; flex-shrink:0;">{it['abbr']}</span>
+                    </div>
+                    <div style="font-size:0.7rem; color:#94A3B8; margin-top:2px;">
+                        เกณฑ์ปกติ: {it['r_min']} - {it['r_max']} {it['unit']}
+                    </div>
+                </div>
+                <!-- Col 2 (43%): Visual Range Bar -->
+                <div style="padding:0 6px;">
+                    {range_bar_html}
+                </div>
+                <!-- Col 3 (22%): Value & Trend -->
+                <div style="text-align:right; min-width:0;">
+                    <div style="font-size:1.02rem; font-weight:800; color:{it['marker_col']}; font-family:'JetBrains Mono',monospace; line-height:1.2;">
+                        {it['fval']:.2f} <span style="font-size:0.72rem; color:#64748B; font-weight:600;">{it['unit']}</span>
+                    </div>
+                    <div style="margin-top:2px;">
+                        {it['trend_badge']}
+                    </div>
+                </div>
+            </div>
+            """
+
+        render_html(
+            f"""
+            <div style="background:white; border:1px solid #E2E8F0; {border_left_style} border-radius:12px; margin-bottom:14px; overflow:hidden; box-shadow:0 1px 3px rgba(15,23,42,0.02);">
+                <div style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <span style="font-size:0.88rem; font-weight:800; color:#0F172A;">{title_th}</span>
+                        <span style="font-size:0.72rem; color:#64748B;">({title_en})</span>
+                        {priority_tag}
+                    </div>
+                    {badge_card}
+                </div>
+                <div>
+                    {rows_code}
+                </div>
+            </div>
+            """
+        )
+
+    grid_l, grid_r = st.columns(2, gap="large")
+    with grid_l:
+        for idx, (p_th, p_en, items, n_abn, crit_c, r_score) in enumerate(panels_l):
+            _render_matrix_panel(p_th, p_en, items, n_abn, crit_c, is_top_priority=(idx == 0))
+
+    with grid_r:
+        for p_th, p_en, items, n_abn, crit_c, r_score in panels_r:
+            _render_matrix_panel(p_th, p_en, items, n_abn, crit_c, is_top_priority=False)
+
+    # ── Export & Raw Data Table Accordion ──
+    with st.expander("📊 ดูข้อมูลแบบตารางสรุปครบทุกรายการ (Table View & Export)", expanded=False):
+        if all_table_records:
+            st.dataframe(pd.DataFrame(all_table_records), use_container_width=True, hide_index=True)
+
+
 def render_patient_card_view(
     avail_df: Optional[pd.DataFrame] = None,
     summary_pts: Optional[pd.DataFrame] = None,
@@ -718,23 +900,6 @@ def render_patient_card_view(
             else:
                 return "mild", "#CA8A04", "🟡 ต่ำกว่าเกณฑ์เล็กน้อย", f"ต่ำกว่าค่าปกติเล็กน้อย ({val_num:.1f} vs min {min_r})"
 
-        def _render_visual_range_bar(fval: float, r_min: float, r_max: float, marker_col: str) -> str:
-            span = r_max - r_min
-            d_min = max(0.0, r_min - span * 0.6)
-            d_max = r_max + span * 0.8
-            if d_max <= d_min:
-                d_max = d_min + 1.0
-            val_pct = max(3.0, min(97.0, (fval - d_min) / (d_max - d_min) * 100.0))
-            norm_start_pct = max(0.0, (r_min - d_min) / (d_max - d_min) * 100.0)
-            norm_width_pct = max(8.0, (r_max - r_min) / (d_max - d_min) * 100.0)
-            return f"""
-            <div style="position:relative; width:100%; height:16px; display:flex; align-items:center;" title="ผลตรวจ {fval:.2f} (เกณฑ์ปกติ: {r_min} - {r_max})">
-                <div style="position:absolute; width:100%; height:6px; background:#F1F5F9; border-radius:999px;"></div>
-                <div style="position:absolute; left:{norm_start_pct:.1f}%; width:{norm_width_pct:.1f}%; height:6px; background:#CBD5E1; border-radius:999px;"></div>
-                <div style="position:absolute; left:calc({val_pct:.1f}% - 6px); width:12px; height:12px; border-radius:50%; background:{marker_col}; border:2px solid white; box-shadow:0 1px 4px rgba(0,0,0,0.25); z-index:2;"></div>
-            </div>
-            """
-
         # Pre-process all panel items
         triage_critical = []
         triage_moderate = []
@@ -803,7 +968,11 @@ def render_patient_card_view(
                         "ระดับความเสี่ยง": lbl_th,
                     })
 
-            panels_data.append((p_title, p_en, p_items, abnormal_in_panel))
+            crit_in_panel = sum(1 for it in p_items if it["tier"] == "critical")
+            mod_in_panel = sum(1 for it in p_items if it["tier"] == "moderate")
+            mild_in_panel = sum(1 for it in p_items if it["tier"] == "mild")
+            panel_risk_score = crit_in_panel * 100 + mod_in_panel * 10 + mild_in_panel * 1
+            panels_data.append((p_title, p_en, p_items, abnormal_in_panel, crit_in_panel, panel_risk_score))
 
         total_measured_count = len(all_table_records)
         total_abnormal_count = len(triage_critical) + len(triage_moderate) + len(triage_mild)
@@ -1125,139 +1294,14 @@ def render_patient_card_view(
 
         st.markdown("---")
 
-        # ── ZONE 3: Interactive Lab Details Matrix (Visual Range & Organ Panels) ──
-        st.markdown("##### 🔬 แผงวิเคราะห์ผลตรวจทางห้องปฏิบัติการ (Interactive Visual Range Matrix)")
-        st.caption("แถบสเกลวัดระดับ (Visual Range Bar) ช่วยให้เห็นทันทีว่าผลตรวจอยู่ในช่วงปกติ (แถบสีเทา) หรือเบี่ยงเบนออกนอกเกณฑ์")
-
-        filter_c1, filter_c2 = st.columns([2.5, 1.5])
-        with filter_c1:
-            mat_filter = st.radio(
-                "ตัวกรองการแสดงผล:",
-                [
-                    f"📋 แสดงทั้งหมด ({total_measured_count} รายการ)",
-                    f"⚠️ เฉพาะค่าผิดปกติ ({total_abnormal_count} รายการ)",
-                    f"🟢 เฉพาะค่าปกติ ({total_measured_count - total_abnormal_count} รายการ)",
-                ],
-                horizontal=True,
-                key=f"matrix_filter_{sel_pid_str}",
-            )
-        with filter_c2:
-            search_query = st.text_input(
-                "🔍 ค้นหารายการตรวจ (Search Lab):",
-                placeholder="เช่น LDL, eGFR, กรดยูริก, ตับ...",
-                key=f"search_lab_{sel_pid_str}",
-            ).strip().lower()
-
-        # Render 2-Column Organ Panels Grid with Visual Range Bars
-        grid_l, grid_r = st.columns(2, gap="large")
-        panels_l = [panels_data[0], panels_data[1], panels_data[4]]
-        panels_r = [panels_data[2], panels_data[3]]
-
-        def _render_matrix_panel(title_th: str, title_en: str, items: List[Dict[str, Any]], n_abn: int) -> None:
-            # Filter by mode and search query
-            filtered = []
-            for it in items:
-                # Severity filter
-                if "เฉพาะค่าผิดปกติ" in mat_filter and it["tier"] == "normal":
-                    continue
-                if "เฉพาะค่าปกติ" in mat_filter and it["tier"] != "normal":
-                    continue
-                # Search filter
-                if search_query:
-                    match_s = (search_query in it["name_th"].lower()) or (search_query in it["abbr"].lower())
-                    if not match_s:
-                        continue
-                filtered.append(it)
-
-            if not filtered:
-                if "เฉพาะค่าผิดปกติ" in mat_filter or search_query:
-                    render_html(
-                        f"""
-                        <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; margin-bottom:14px; overflow:hidden;">
-                            <div style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
-                                <div>
-                                    <span style="font-size:0.88rem; font-weight:800; color:#0F172A;">{title_th}</span>
-                                    <span style="font-size:0.72rem; color:#64748B;">({title_en})</span>
-                                </div>
-                                <span style="font-size:0.72rem; color:#047857; background:#ECFDF5; border:1px solid #A7F3D0; padding:2px 8px; border-radius:6px; font-weight:700;">🟢 ปกติทุกค่า</span>
-                            </div>
-                            <div style="padding:12px 16px; font-size:0.78rem; color:#94A3B8; text-align:center;">
-                                ไม่มีรายการที่ตรงกับเงื่อนไขในหมวดนี้
-                            </div>
-                        </div>
-                        """
-                    )
-                return
-
-            badge_card = (
-                f'<span style="background:#FEE2E2; color:#B91C1C; border:1px solid #FECACA; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px;">⚠️ ผิดปกติ {n_abn} รายการ</span>'
-                if n_abn > 0 else
-                f'<span style="background:#ECFDF5; color:#047857; border:1px solid #A7F3D0; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px;">🟢 ปกติทุกค่า</span>'
-            )
-
-            rows_code = ""
-            for idx, it in enumerate(filtered):
-                is_last_row = (idx == len(filtered) - 1)
-                b_btm = "none" if is_last_row else "1px solid #F1F5F9"
-                range_bar_html = _render_visual_range_bar(it["fval"], it["r_min"], it["r_max"], it["marker_col"])
-
-                rows_code += f"""
-                <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:{b_btm}; gap:12px;">
-                    <!-- Col 1 (35%): Name & Reference -->
-                    <div style="flex: 0 0 34%;">
-                        <div style="display:flex; align-items:center; gap:5px;">
-                            <span style="font-size:0.84rem; font-weight:700; color:#1E293B;">{it['name_th']}</span>
-                            <span style="font-size:0.68rem; color:#64748B; background:#F1F5F9; padding:1px 5px; border-radius:4px; font-weight:600;">{it['abbr']}</span>
-                        </div>
-                        <div style="font-size:0.7rem; color:#94A3B8; margin-top:2px;">
-                            เกณฑ์ปกติ: {it['r_min']} - {it['r_max']} {it['unit']}
-                        </div>
-                    </div>
-                    <!-- Col 2 (38%): Visual Range Bar -->
-                    <div style="flex: 1 1 38%; padding:0 8px;">
-                        {range_bar_html}
-                    </div>
-                    <!-- Col 3 (28%): Value & Trend -->
-                    <div style="flex: 0 0 28%; text-align:right;">
-                        <div style="font-size:1.05rem; font-weight:800; color:{it['marker_col']}; font-family:'JetBrains Mono',monospace; line-height:1.2;">
-                            {it['fval']:.2f} <span style="font-size:0.72rem; color:#64748B; font-weight:600;">{it['unit']}</span>
-                        </div>
-                        <div style="margin-top:2px;">
-                            {it['trend_badge']}
-                        </div>
-                    </div>
-                </div>
-                """
-
-            render_html(
-                f"""
-                <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; margin-bottom:14px; overflow:hidden; box-shadow:0 1px 3px rgba(15,23,42,0.02);">
-                    <div style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <span style="font-size:0.88rem; font-weight:800; color:#0F172A;">{title_th}</span>
-                            <span style="font-size:0.72rem; color:#64748B;">({title_en})</span>
-                        </div>
-                        {badge_card}
-                    </div>
-                    <div>
-                        {rows_code}
-                    </div>
-                </div>
-                """
-            )
-
-        with grid_l:
-            for p_th, p_en, items, n_abn in panels_l:
-                _render_matrix_panel(p_th, p_en, items, n_abn)
-
-        with grid_r:
-            for p_th, p_en, items, n_abn in panels_r:
-                _render_matrix_panel(p_th, p_en, items, n_abn)
-
-        # ── Export & Raw Data Table Accordion ──
-        with st.expander("📊 ดูข้อมูลแบบตารางสรุปครบทุกรายการ (Table View & Export)", expanded=False):
-            if all_table_records:
-                st.dataframe(pd.DataFrame(all_table_records), use_container_width=True, hide_index=True)
+        # ── ZONE 3: Interactive Lab Details Matrix (Fragment & Dynamic Sorting) ──
+        render_zone3_lab_matrix(
+            panels_data=panels_data,
+            total_measured_count=total_measured_count,
+            total_abnormal_count=total_abnormal_count,
+            sel_pid_str=sel_pid_str,
+            all_table_records=all_table_records,
+        )
 
     # ==========================================================================
     # TAB 3: 🤖 เหตุผล AI & บทสนทนานำเสนอ
