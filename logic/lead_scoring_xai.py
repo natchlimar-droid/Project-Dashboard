@@ -2585,18 +2585,20 @@ def render_lead_scoring_xai_dashboard(raw_clinical_df=None, prophet_model=None, 
             gender_raw = str(raw_row.get("gender", raw_row.get("gender_clean", "ชาย"))).strip()
             gender_c = 1.0 if (gender_raw in ["ชาย", "male", "M"] or _feat("Gender_Code", 1.0) >= 0.5) else 0.0
             gender_str = "ชาย" if gender_c >= 0.5 else "หญิง"
+            dia_bp_val = float(raw_row.get("diastolic_bp", 80.0) or (80.0 if sys_val < 130 else 85.0))
             patient_snap = resolve_patient_lab_snapshot(
                 sel_pid_str=str(selected_cid),
                 age_val=float(age_val),
                 gender_code=gender_c,
                 bmi_val=float(bmi_val),
                 sys_val=float(sys_val),
-                dia_bp_val=float(raw_row.get("diastolic_bp", 80.0) or (80.0 if sys_val < 130 else 85.0)),
+                dia_bp_val=float(dia_bp_val),
                 is_dm=bool(_feat("Diabetes (Dx)") >= 0.5),
                 is_ht=bool(_feat("Hypertension (Dx)") >= 0.5 or sys_val >= 140.0),
                 is_dlp=bool(_feat("Dyslipidemia (Dx)") >= 0.5),
                 visits_val=float(visits_val),
             )
+            dia_bp_val = float(patient_snap.get("diastolic_bp", dia_bp_val))
 
             # Pre-calculate base quote to get smart defaults
             base_quote = build_patient_precision_quotation(
