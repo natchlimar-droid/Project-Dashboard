@@ -233,10 +233,32 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 /* ── Mobile & Tablet Responsive Layout (Stacked Mobile-First Rows) ───────── */
 .lab-row-grid {
   display: grid;
-  grid-template-columns: 35% 43% 22%;
+  grid-template-columns: 32fr 36fr 32fr;
   align-items: center;
-  padding: 10px 14px;
-  gap: 10px;
+  padding: 10px 16px;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.lab-row-grid .lab-col-meta {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.lab-row-grid .lab-col-bar {
+  min-width: 0;
+  padding: 0 4px;
+}
+
+.lab-row-grid .lab-col-val {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  text-align: right;
+  white-space: nowrap;
 }
 
 @media (max-width: 768px) {
@@ -263,6 +285,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .lab-row-grid .lab-col-bar {
     width: 100% !important;
     padding: 4px 0 !important;
+  }
+  .lab-row-grid .lab-col-val {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
   }
 }
 

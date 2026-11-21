@@ -375,8 +375,8 @@ def render_zone3_lab_matrix(
 
             rows_code += f"""
             <div class="lab-row-grid" style="border-bottom:{b_btm};">
-                <!-- Col 1 (35%): Name & Reference (Geriatric WCAG AA Contrast) -->
-                <div class="lab-col-meta" style="min-width:0;">
+                <!-- Col 1 (32fr): Name & Reference (Geriatric WCAG AA Contrast) -->
+                <div class="lab-col-meta">
                     <div>
                         <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
                             <span style="font-size:0.92rem; font-weight:800; color:#0F172A;" title="{it['name_th']}">{it['name_th']}</span>
@@ -388,16 +388,16 @@ def render_zone3_lab_matrix(
                         </div>
                     </div>
                 </div>
-                <!-- Col 2 (43%): Smart Range Bar -->
-                <div class="lab-col-bar" style="padding:0 6px;">
+                <!-- Col 2 (36fr): Smart Range Bar -->
+                <div class="lab-col-bar">
                     {range_bar_html}
                 </div>
-                <!-- Col 3 (22%): Value & Trend -->
-                <div class="lab-col-val" style="text-align:right; min-width:0;">
-                    <div style="font-size:1.15rem; font-weight:800; color:{it['marker_col']}; font-family:'JetBrains Mono',monospace; line-height:1.2;">
+                <!-- Col 3 (32fr): Value & Trend (Fully Visible & Balanced) -->
+                <div class="lab-col-val">
+                    <div style="font-size:1.12rem; font-weight:800; color:{it['marker_col']}; font-family:'JetBrains Mono',monospace; line-height:1.2; white-space:nowrap;">
                         {it['fval']:.2f} <span style="font-size:0.78rem; color:#475569; font-weight:700;">{it['unit']}</span>
                     </div>
-                    <div style="margin-top:2px;">
+                    <div style="margin-top:3px; white-space:nowrap;">
                         {it['trend_badge']}
                     </div>
                 </div>
@@ -422,7 +422,7 @@ def render_zone3_lab_matrix(
             """
         )
 
-    grid_l, grid_r = st.columns(2, gap="large")
+    grid_l, grid_r = st.columns(2, gap="medium")
     with grid_l:
         for idx, (p_th, p_en, items, n_abn, crit_c, r_score) in enumerate(panels_l):
             _render_matrix_panel(p_th, p_en, items, n_abn, crit_c, is_top_priority=(idx == 0))
@@ -1073,13 +1073,13 @@ def render_patient_card_view(
                     if delta_val is not None and pd.notna(delta_val):
                         d_num = float(delta_val)
                         if d_num > 0:
-                            trend_badge = f"<span style='font-size:0.74rem; color:#B91C1C; background:#FEF2F2; border:1px solid #FECACA; padding:2px 6px; border-radius:4px; font-weight:700;'>▲ +{d_num:.1f} <span style='font-size:0.68rem; color:#991B1B;'>เทียบครั้งก่อน</span></span>"
+                            trend_badge = f"<span style='font-size:0.72rem; color:#B91C1C; background:#FEF2F2; border:1px solid #FECACA; padding:2px 6px; border-radius:4px; font-weight:700; white-space:nowrap; display:inline-block;'>▲ +{d_num:.1f} <span style='font-size:0.68rem; color:#991B1B;'>เทียบครั้งก่อน</span></span>"
                         elif d_num < 0:
-                            trend_badge = f"<span style='font-size:0.74rem; color:#047857; background:#ECFDF5; border:1px solid #A7F3D0; padding:2px 6px; border-radius:4px; font-weight:700;'>▼ {d_num:.1f} <span style='font-size:0.68rem; color:#065F46;'>เทียบครั้งก่อน</span></span>"
+                            trend_badge = f"<span style='font-size:0.72rem; color:#047857; background:#ECFDF5; border:1px solid #A7F3D0; padding:2px 6px; border-radius:4px; font-weight:700; white-space:nowrap; display:inline-block;'>▼ {d_num:.1f} <span style='font-size:0.68rem; color:#065F46;'>เทียบครั้งก่อน</span></span>"
                         else:
-                            trend_badge = "<span style='font-size:0.74rem; color:#475569; background:#F8FAFC; border:1px solid #E2E8F0; padding:2px 6px; border-radius:4px; font-weight:600;'>— คงที่</span>"
+                            trend_badge = "<span style='font-size:0.72rem; color:#475569; background:#F8FAFC; border:1px solid #E2E8F0; padding:2px 6px; border-radius:4px; font-weight:600; white-space:nowrap; display:inline-block;'>— คงที่</span>"
                     else:
-                        trend_badge = "<span style='font-size:0.74rem; color:#475569; background:#F8FAFC; border:1px solid #E2E8F0; padding:2px 6px; border-radius:4px; font-weight:600;'>— ตรวจครั้งแรก</span>"
+                        trend_badge = "<span style='font-size:0.72rem; color:#475569; background:#F8FAFC; border:1px solid #E2E8F0; padding:2px 6px; border-radius:4px; font-weight:600; white-space:nowrap; display:inline-block;'>— ตรวจครั้งแรก</span>"
 
                     if tier != "normal":
                         abnormal_in_panel += 1
