@@ -12,7 +12,12 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
+
+try:
+    import plotly.graph_objects as go
+except ImportError:
+    go = None
+
 import streamlit as st
 
 

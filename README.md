@@ -1,108 +1,143 @@
-# 🏥 PrimeCare Wellness Clinic — Clinical Command Center & AI Package Intelligence
+# 🏥 PrimeCare Wellness Clinic — Clinical Command Center & AI Intelligence Architecture
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/deploy?repository=natchlimar-droid/Project-Dashboard&branch=main&mainModule=app.py)
+[![Live Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://natchlimar-droid-project-dashboard-app-bqvoof.streamlit.app/)
+[![CI/CD Pipeline](https://github.com/natchlimar-droid/Project-Dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/natchlimar-droid/Project-Dashboard/actions/workflows/ci.yml)
+![Python Version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue?logo=python)
+![Framework](https://img.shields.io/badge/Framework-Streamlit%201.32%2B-FF4B4B?logo=streamlit)
+![Machine Learning](https://img.shields.io/badge/ML-XGBoost%20%7C%20SHAP%20%7C%20Prophet-orange)
+![Clinical Guidelines](https://img.shields.io/badge/Clinical-KDIGO%202024%20%7C%20JNC8%20%7C%20Thai%20CV%20Risk-0F766E)
 
-แดชบอร์ดวิเคราะห์ข้อมูลสุขภาพผู้ป่วย พร้อมระบบ **AI Multi-Task Package Matcher v2**, **Dynamic Personalized / Tailor-Made Package Builder (`CUSTOM_BESPOKE`)**, และ **Lead Scoring & Explainable AI (XAI)** สำหรับคัดกรองความเสี่ยงและแนะนำแพ็กเกจตรวจสุขภาพรายบุคคล
+> **Executive Case Study & Portfolio Project:** ระบบศูนย์บัญชาการข้อมูลคลินิกอัจฉริยะ (Clinical Command Center) และระบบคัดกรองแพ็กเกจสุขภาพเชิงรุกรายบุคคลด้วย **Explainable AI (XAI)** บนมาตรฐานเวชปฏิบัติสากลระดับโลก ออกแบบสำหรับโรงพยาบาลและคลินิกสุขภาพชั้นนำ
 
 ---
 
-## 🏗️ โครงสร้างโปรเจกต์ (Project Structure)
+## 📌 สรุปภาพรวมและคุณค่าทางธุรกิจ (Executive Summary & Business Impact)
 
-```text
-Project Dashboard/
-├── app.py                                      # Main Streamlit Application Entrypoint
-├── custom_ui.py                                # Custom UI & Glassmorphic Component Helpers
-├── logic/
-│   ├── config.py                               # Package Catalogs, Clinical Thresholds & Constants
-│   ├── package_matching_v2.py                  # Multi-Task Package Matcher v2 + Modular Tailor-Made Package Engine
-│   ├── patient_segmentation.py                 # Clinical Tier 1–4 Segmentation & Personalized Bridge
-│   ├── package_service.py                      # Package Sales Analytics & Mismatch Detection
-│   └── lead_scoring_xai.py                     # XGBoost Propensity Scoring, SHAP Explainability & Prophet Revenue Projection
-├── data/
-│   ├── sample_hospital_transactions.csv        # Sample Hospital Transactions
-│   └── synthetic/                              # 10,000-Patient Synthetic Clinical & Lab Star-Schema Dataset
-│       ├── dim_patient.parquet                 # Patient Demographics & Baseline Profiles (10,000 patients)
-│       ├── dim_package.csv                     # 13 Standard Health Checkup Packages (4 Tiers)
-│       ├── dim_lab_test.csv                    # 26 Standardized Lab Biomarkers (LOINC + Reference Ranges)
-│       ├── fact_encounter.parquet              # Longitudinal Visit History (Sorted by patient_id, visit_date, visit_id)
-│       ├── fact_lab_result.parquet             # Longitudinal Lab Results (Long Format)
-│       ├── fact_package_purchase.parquet       # Historical Package Purchases & Conversion Labels
-│       ├── train_patient_snapshot.parquet      # Wide Feature Matrix (83 Features + Multi-Task Labels)
-│       └── feature_groups.json                 # Feature Schema & Zero-Leakage Metadata
-├── models/
-│   ├── package_matcher_v2_bundle.npz           # Multi-Task Package Matcher v2 Weights (NumPy Portable Bundle)
-│   ├── package_matcher_v2_meta.json            # Model Metrics & Evaluation Metadata
-│   └── xgboost_package_upsell_model.json       # Pre-trained XGBoost Propensity Model
-├── data_generation/
-│   ├── generate_synthetic_patients.py          # Synthetic Clinical & Lab Data Generator (10,000 Patients)
-│   └── train_package_matcher.py                # Multi-Task Model Training Pipeline
-├── tests/
-│   ├── test_executive_overview.py              # Executive Overview Unit Tests
-│   ├── test_package_matching_v2.py             # Package Matching v2 & Tailor-Made Package Unit Tests
-│   └── test_refactor.py                        # Segmentation & Package Service Unit Tests
-├── .streamlit/
-│   └── config.toml                             # Streamlit Theme & Server Configuration
-├── requirements.txt                            # Python Dependencies (Streamlit Cloud Ready)
-└── .gitignore                                  # PDPA & Large Raw Data Exclusions
+ในระบบบริการสุขภาพยุคปัจจุบัน โรงพยาบาลและคลินิกเวชกรรมส่วนใหญ่ยังคงดำเนินงานในรูปแบบ **"Passive Healthcare"** (รอให้ผู้ป่วยมีอาการป่วยแล้วจึงเข้ารับการรักษา) ส่งผลให้:
+1. **ผู้ป่วยโรคเรื้อรัง (NCDs)** ขาดการติดตามเชิงรุกจนลุกลามสู่ภาวะแทรกซ้อนรุนแรง (เช่น ไตวายระยะสุดท้ายต้องล้างไต, โรคหลอดเลือดสมอง หรือหัวใจขาดเลือด)
+2. **องค์กรสูญเสียโอกาสทางธุรกิจ** จากกลุ่มผู้รับบริการ OPD ทั่วไปที่มีความเสี่ยงสุขภาพแฝงแต่ไม่เคยซื้อแพ็กเกจตรวจสุขภาพเชิงลึก (Unconverted Non-Buyers)
+
+**PrimeCare Clinical Intelligence** ถูกออกแบบขึ้นเพื่อแก้ปัญหานี้โดยทำหน้าที่เป็นสะพานเชื่อมระหว่าง **"ความเสี่ยงทางคลินิก (Clinical Risk Stratification)"** และ **"โมเดลธุรกิจตรวจสุขภาพเชิงป้องกัน (Preventive Package Monetization)"** ด้วยการนำข้อมูลเวชระเบียน 10,000 ราย และประวัติการตรวจกว่า 100,000 ครั้งมาวิเคราะห์ผ่าน AI ที่แพทย์และผู้บริหารสามารถตรวจสอบเหตุผลได้ทุกขั้นตอน (Explainable & Auditable AI)
+
+---
+
+## 🏗️ สถาปัตยกรรมระบบและการไหลของข้อมูล (System Architecture & Data Flow)
+
+```mermaid
+flowchart TD
+    subgraph Data_Layer ["1. Data & Storage Layer"]
+        D1[("OPD Longitudinal Visits<br/>100,569 Encounters")]
+        D2[("Patient Biomarker Snapshots<br/>10,000 Cohort Records")]
+        D3[("Hospital Sales & Transactions<br/>Real Transactional CSV")]
+    end
+
+    subgraph Clinical_Engine ["2. Clinical Decision & ML Engine"]
+        E1["KDIGO 2024 Matrix Engine<br/>(eGFR x UACR 6x3 Heatmap)"]
+        E2["Cardiovascular Risk Engine<br/>(Thai CV Risk 10Y & JNC8 HT)"]
+        E3["XGBoost Propensity Classifier<br/>(Package Purchase Likelihood)"]
+        E4["TreeSHAP Attribution Engine<br/>(Individual Risk Factor Explainer)"]
+        E5["Prophet Time-Series Engine<br/>(Seasonal Revenue Uplift)"]
+    end
+
+    subgraph Application_Layer ["3. Application & Orchestration Layer (app.py)"]
+        A1["Dynamic Hot-Reload Dispatcher<br/>(importlib.reload per view)"]
+        A2["PHI-Safe Error Boundary<br/>(HTML Escaping & Sanitization)"]
+        A3["Deep-Linking Router<br/>(?page=... & patient_id=...)"]
+    end
+
+    subgraph Presentation_Layer ["4. Interactive Presentation Views"]
+        V1["📊 Executive Overview<br/>(Strategy, Revenue & Scenarios)"]
+        V2["🎯 AI Lead Intelligence<br/>(Scoring, SHAP & Cohort Lists)"]
+        V3["👤 Patient Insight Card<br/>(Smart Range Bars & Quotation)"]
+        V4["🩺 Clinical Command Center<br/>(KDIGO Heatmap & Kaplan-Meier)"]
+    end
+
+    Data_Layer --> Clinical_Engine
+    Clinical_Engine --> Application_Layer
+    Application_Layer --> Presentation_Layer
+    V4 -.->|"Cross-Linking Jump"| V3
+    V2 -.->|"Direct Routing"| V3
 ```
 
 ---
 
-## ✨ ฟีเจอร์หลัก (Key Capabilities)
+## 🔬 จุดเด่นทางเทคนิคและมาตรฐานทางการแพทย์ (Core Technical Highlights)
 
-### 1. 🧬 ระบบจัดแพ็กเกจเฉพาะคนไข้ (Dynamic Personalized / Tailor-Made Package — `CUSTOM_BESPOKE`)
-- ตรวจจับอัตโนมัติเมื่อคนไข้มีผล Lab หรือความเสี่ยงเฉพาะอวัยวะที่แพ็กเกจมาตรฐานทั้ง 13 รายการไม่ครอบคลุมครบ 100% หรือมีความเสี่ยงซ้อนทับหลายระบบ:
-  - **ไตเสื่อม (`MOD_RENAL`):** `eGFR < 60` หรือ `UACR ≥ 30 mg/g`
-  - **ไทรอยด์ผิดปกติ (`MOD_THYROID`):** `TSH < 0.45` หรือ `TSH > 4.5 mIU/L`
-  - **โลหิตจาง/ขาดธาตุเหล็ก (`MOD_ANEMIA`):** `Hb` ต่ำกว่าเกณฑ์ หรือ `Ferritin < 30 ng/mL`
-  - **กรดยูริกสูง/เกาต์ (`MOD_GOUT`):** `Uric Acid > 7.0` (ชาย) หรือ `> 6.0` (หญิง)
-  - **ตับอักเสบ/พังผืดตับ (`MOD_HEPATIC`):** `ALT > 40 U/L`, `FIB-4 ≥ 1.30`, หรือพบไขมันพอกตับ
-- รองรับการปรับเพิ่ม/ลดโมดูลการตรวจแบบ Interactive (`🛠️ ปรับแต่งโมดูลการตรวจเฉพาะบุคคล`) พร้อมคำนวณราคาเต็มและส่วนลด Bundle (**15%–18%**) อัตโนมัติ
+### 1. 🧪 ศูนย์ไต & ล้างไต (Renal & KDIGO 2024 Command Center)
+- **KDIGO 2024 2D Heatmap Matrix:** จำแนกระดับความเสี่ยงโรคไตตามแนวทางสากล $6 \times 3$ ตาราง (GFR Stage G1–G5 ร่วมกับ Albuminuria Stage A1–A3) พร้อมรหัสสีเขียว/เหลือง/ส้ม/แดง และสัดส่วนผู้ป่วยรายกลุ่ม
+- **Kaplan-Meier Renal Survival Curve:** แบบจำลองพยากรณ์อัตราการรอดชีวิตของไตโดยไม่ล้างไต (Non-ESRD Survival) ตลอดช่วงเวลา 60 เดือน (5 ปี) พร้อมตาราง Number of Patients at Risk Table
+- **Rapid Decliners Detection:** คัดกรองผู้ป่วยที่ไตเสื่อมเร็วผิดปกติ ($\Delta\text{eGFR} < -5\text{ mL/min/ปี}$) เพื่อส่งต่ออายุรแพทย์โรคไตทันที
 
-### 2. 🤖 AI Multi-Task Package Matcher v2 (4 Tiers · 13 Standard Packages + 9 Add-ons)
-- จับคู่คนไข้เข้ากับแพ็กเกจมาตรฐาน 4 ระดับ (Tier 1 ตรวจสุขภาพพื้นฐาน → Tier 4 คัดกรองโรคเฉพาะทางเชิงลึก)
-- แสดงเหตุผลประกอบรายบุคคลจากค่า Lab จริง (Top Biomarker Drivers) และแนะนำรายการตรวจเสริม (Add-ons) เช่น `PSA`, `Mammogram`, `FibroScan`, `Fundus Exam`, `Low-Dose CT Lung`
+### 2. 🫀 ศูนย์ความดันโลหิตสูงและเบาหวาน (HT & DM Command Centers)
+- **JNC 8 & Thai HT Guidelines:** จำแนกระดับความดันโลหิต Systolic/Diastolic BP พร้อมชาร์ตแนวโน้ม Cohort รายไตรมาส (Longitudinal Trend) เทียบเส้นเกณฑ์ $140/90\text{ mmHg}$
+- **Glycemic Spectrum & DKD Risk:** วิเคราะห์การกระจายตัวของระดับ HbA1c และเชื่อมโยงความเสี่ยงเบาหวานลงไต (Diabetic Kidney Disease)
 
-### 3. 🎯 AI Lead Intelligence (XGBoost Propensity + SHAP XAI + Prophet Forecast)
-- แบ่งหน้าจอออกเป็น **4 แท็บแนวนอน** ที่อ่านง่ายและไม่รกตา:
-  1. **🎯 รายชื่อกลุ่มเป้าหมาย & วิเคราะห์รายบุคคล:** การ์ดโปรไฟล์คนไข้ + แนะนำแพ็กเกจเฉพาะบุคคล + กราฟ SHAP Waterfall + ตารางรายชื่อผู้มุ่งหวังพร้อมดาวน์โหลด CSV
-  2. **🌐 ปัจจัยขับเคลื่อนระดับประชากร (Global SHAP):** กราฟลำดับความสำคัญของตัวแปรระดับประชากร
-  3. **🔄 โครงสร้างประชากร & Funnel:** วิเคราะห์สัดส่วนผู้เคยซื้อ vs ผู้ยังไม่เคยซื้อแพ็กเกจ (Anti-Join Funnel)
-  4. **📈 พยากรณ์รายได้ & จำลองกลยุทธ์:** จำลองเป้าหมายรายได้ 6–24 เดือนข้างหน้า
+### 3. 🤖 Explainable AI (XAI) & Propensity Modeling
+- **XGBoost Classifier:** ประเมินโอกาสในการซื้อแพ็กเกจสุขภาพตรวจเจาะลึก (Propensity Score 0–100%)
+- **TreeSHAP Attribution:** แสดงผลค่าน้ำหนักปัจจัยเสี่ยง (SHAP Waterfall Chart) ให้แพทย์และทีมสุขภาพเห็นว่า AI แนะนำแพ็กเกจนี้เพราะเหตุผลใด (เช่น อายุ, ค่าความดันสูง, หรือค่าไตที่เริ่มลดลง)
 
-### 4. ⚙️ ปรับเปลี่ยนชื่อคลินิกแบบ Real-time
-- ค่าเริ่มต้นคือ **PrimeCare Wellness Clinic** และสามารถเปลี่ยนชื่อคลินิกหรือคำโปรย (Tagline) ได้ทันทีผ่านเมนู **`⚙️ ตั้งค่าชื่อคลินิก (Clinic Brand)`** บนแถบ Sidebar ด้านซ้าย
+### 4. 🔗 Seamless Cross-Linking & Deep Linking
+- รองรับการกระโดดข้ามหน้าแบบสองทิศทางจากกลุ่มเสี่ยง NCDs ไปยังแฟ้มประวัติรายบุคคลฉบับเต็ม พร้อมส่ง Parameter ผ่าน URL เช่น:
+  `https://natchlimar-droid-project-dashboard-app-bqvoof.streamlit.app/?page=patient&patient_id=605`
 
 ---
 
-## 🚀 การติดตั้งและรันบนเครื่อง (Local Setup)
+## 🛠️ รายการเทคโนโลยีและไลบรารีที่ใช้ (Tech Stack)
+
+| ส่วนของระบบ | เครื่องมือ / ไลบรารี | วัตถุประสงค์การใช้งาน |
+| :--- | :--- | :--- |
+| **Web Framework** | `Streamlit >= 1.32.0` | สร้างเว็บแอปพลิเคชันโต้ตอบความเร็วสูง |
+| **Data Processing** | `Pandas >= 2.0.0`, `NumPy >= 1.24.0`, `PyArrow` | วิเคราะห์ตารางข้อมูลขนาดใหญ่และประมวลผล Parquet |
+| **Data Visualization** | `Plotly >= 5.18.0` | สร้างชาร์ต Scatter, Heatmap, Bar และ Kaplan-Meier Step Curve |
+| **Machine Learning** | `XGBoost >= 2.0.0`, `Scikit-Learn >= 1.3.0` | โมเดล Gradient Boosting จำแนกและทำนายโอกาสการซื้อแพ็กเกจ |
+| **Explainable AI** | `SHAP >= 0.44.0` | คำนวณ Shapley Additive Explanations ระดับบุคคล |
+| **Time-Series Forecasting** | `Prophet >= 1.1.5` | พยากรณ์แนวโน้มยอดขายและผลตอบแทนส่วนเพิ่ม (Revenue Uplift) |
+| **Testing & CI/CD** | `unittest`, `GitHub Actions` | ตรวจสอบคุณภาพโค้ดและรัน Automated Testing ก่อน Deploy |
+
+---
+
+## 📚 มาตรฐานทางการแพทย์และเอกสารอ้างอิง (Clinical References)
+
+1. **KDIGO 2024 Clinical Practice Guideline for the Evaluation and Management of Chronic Kidney Disease:** Kidney International (2024) 105 (4S), S117–S314.
+2. **2024 Thai Guidelines on the Treatment of Hypertension:** สมาคมความดันโลหิตสูงแห่งประเทศไทย (Thai Hypertension Society).
+3. **Thai CV Risk Score:** แบบประเมินความเสี่ยงต่อการเกิดโรคหลอดเลือดหัวใจและสมอง โดยคณะแพทยศาสตร์โรงพยาบาลรามาธิบดี และการไฟฟ้าฝ่ายผลิตแห่งประเทศไทย (EGAT Study).
+4. **Standards of Care in Diabetes (2024):** American Diabetes Association (ADA).
+
+---
+
+## 💻 วิธีการติดตั้งและรันในเครื่อง (Local Setup & Installation)
 
 ```bash
-# 1. ติดตั้งไลบรารีที่จำเป็น
+# 1. Clone repository
+git clone https://github.com/natchlimar-droid/Project-Dashboard.git
+cd Project-Dashboard
+
+# 2. สร้าง Virtual Environment และเปิดใช้งาน
+python -m venv .venv
+# บน Windows:
+.venv\Scripts\activate
+# บน macOS/Linux:
+source .venv/bin/activate
+
+# 3. ติดตั้ง Dependencies
 pip install -r requirements.txt
 
-# 2. รันชุดทดสอบ (Unit Tests)
-python -m unittest discover -s tests -v
-
-# 3. เปิดใช้งาน Streamlit Dashboard
+# 4. สั่งรันแอปพลิเคชัน
 streamlit run app.py
 ```
 
+เมื่อรันเสร็จสิ้น ให้เปิดเบราว์เซอร์ไปที่ `http://localhost:8501`
+
 ---
 
-## ☁️ การนำขึ้น GitHub และ Deploy บน Streamlit Community Cloud
+## 🧪 การรันชุดทดสอบ (Automated Unit Testing)
 
-1. **สร้าง Repository บน GitHub** และรันคำสั่งต่อไปนี้ในโฟลเดอร์โปรเจกต์:
-   ```bash
-   git init
-   git branch -M main
-   git add .
-   git commit -m "feat: PrimeCare Wellness Clinic dashboard with personalized package engine"
-   git remote add origin https://github.com/<your-username>/<your-repo>.git
-   git push -u origin main
-   ```
-2. **Deploy บน [Streamlit Community Cloud](https://share.streamlit.io/):**
-   - เลือก Repository ที่เพิ่ง Push ขึ้นไป
-   - ตั้งค่า **Branch:** `main`
-   - ตั้งค่า **Main file path:** `app.py`
-   - กด **Deploy!** (ไฟล์ข้อมูลจำลอง `data/synthetic/*.parquet` และโมเดล `models/*` มีขนาดรวมเพียง ~6.7 MB จึงพร้อมทำงานบน Cloud ทันทีโดยไม่ต้องตั้งค่าเพิ่ม)
+```bash
+python -m unittest discover -s tests
+```
+
+---
+
+## 👨‍💻 ข้อมูลนักพัฒนา & ผู้จัดทำ (Author & Contact)
+- **Project Type:** Healthcare Analytics & Clinical Solutions Architecture Portfolio
+- **Live Deployment:** [PrimeCare Wellness Clinic Dashboard](https://natchlimar-droid-project-dashboard-app-bqvoof.streamlit.app/)

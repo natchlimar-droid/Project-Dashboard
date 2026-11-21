@@ -19,8 +19,14 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
+
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+except ImportError:
+    px = None
+    go = None
+
 import streamlit as st
 
 from logic.patient_segmentation import segment_population_dataframe

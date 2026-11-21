@@ -375,6 +375,50 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
+    # ── 6.1 Portfolio Guided Showcase Walkthrough ─────────────────────────────
+    def _jump_to(page: str, pid: Optional[str] = None) -> None:
+        st.session_state["pending_nav_section"] = page
+        st.session_state[NAV_KEY] = page
+        st.query_params["page"] = page
+        if pid:
+            st.session_state["search_patient_id"] = str(pid)
+            st.session_state["pic_search_input"] = str(pid)
+            st.query_params["patient_id"] = str(pid)
+        st.rerun()
+
+    st.markdown(
+        """
+        <div style="background:linear-gradient(135deg, #042F2E 0%, #0F766E 50%, #115E59 100%);
+                    border-radius:12px; padding:14px 20px; color:white; margin:0 0 12px 0;
+                    box-shadow:0 4px 14px rgba(15,118,110,0.18); border:1px solid rgba(204,251,241,0.25);">
+            <div style="font-size:0.75rem; font-weight:800; color:#5EEAD4; text-transform:uppercase; letter-spacing:0.08em; display:flex; align-items:center; gap:6px;">
+                <span>⭐ PORTFOLIO EXECUTIVE SHOWCASE</span>
+                <span style="background:rgba(94,234,212,0.22); color:#CCFBF1; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;">Interactive Walkthrough</span>
+            </div>
+            <div style="font-size:1.02rem; font-weight:700; color:white; margin-top:3px;">
+                👋 ยินดีต้อนรับสู่ระบบ PrimeCare Showcase! แนะนำคลิก 3 ไฮไลต์หลักเพื่อประเมินความสามารถทางเทคนิคและการแพทย์:
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    t_col1, t_col2, t_col3, t_col4 = st.columns([1.15, 1.35, 1.15, 0.5])
+    with t_col1:
+        if st.button("🩺 1. ศูนย์โรคเรื้อรัง & KDIGO", key="btn_tour_clin", use_container_width=True, help="ดูเมทริกซ์โรคไต KDIGO 2024 และ Kaplan-Meier Renal Survival"):
+            _jump_to("clinical")
+    with t_col2:
+        if st.button("👤 2. แฟ้มประวัติรายคน & XAI (ID 605)", key="btn_tour_pt", use_container_width=True, help="ดูผลแล็บ, Smart Range Bar, และ SHAP Waterfall Explainer"):
+            _jump_to("patient", pid="605")
+    with t_col3:
+        if st.button("🎯 3. คัดกรองเป้าหมาย AI Lead", key="btn_tour_lead", use_container_width=True, help="โมเดล XGBoost Propensity Score และการพยากรณ์รายได้ Prophet"):
+            _jump_to("lead")
+    with t_col4:
+        if st.button("📊 หน้าแรก", key="btn_tour_exec", use_container_width=True, help="กลับสู่ภาพรวมผู้บริหาร"):
+            _jump_to("exec")
+
+    st.markdown("<div style='margin-bottom:14px;'></div>", unsafe_allow_html=True)
+
     # ── 7. Lazy Data Loading & View Dispatching (Wrapped in Spinner) ───────────
     if target_page_key == "exec":
         with st.spinner("กำลังโหลดข้อมูลภาพรวมผู้บริหารและยอดขาย..."):
