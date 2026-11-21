@@ -453,7 +453,12 @@ def render_patient_card_view(
     # ── 1. Resolve Active Patient ID ──────────────────────────────────────────
     snap_df, _, _ = load_synthetic_dataset()
 
+    # Priority: explicit argument > URL query param (?patient_id=...) > session state > first df row > default 605
+    url_pid = st.query_params.get("patient_id")
     target_pid = str(selected_pid_input or "").strip()
+    if not target_pid and url_pid:
+        target_pid = str(url_pid).strip()
+
     if not target_pid and "search_patient_id" in st.session_state:
         target_pid = str(st.session_state["search_patient_id"]).strip()
 
@@ -474,16 +479,19 @@ def render_patient_card_view(
         target_pid = st.session_state["pic_search_input"]
 
     st.session_state["search_patient_id"] = target_pid
+    st.query_params["patient_id"] = target_pid
 
     # ── 2. Top Search & Quick Case Selector ───────────────────────────────────
     def _on_search_text_changed() -> None:
         val = str(st.session_state.get("pic_search_input", "")).strip()
         if val:
             st.session_state["search_patient_id"] = val
+            st.query_params["patient_id"] = val
 
     def _select_scenario(pid: str) -> None:
         st.session_state["search_patient_id"] = pid
         st.session_state["pic_search_input"] = pid
+        st.query_params["patient_id"] = pid
 
     search_col1, search_col2 = st.columns([3.5, 1.0])
     with search_col1:
@@ -501,6 +509,7 @@ def render_patient_card_view(
             val = str(st.session_state.get("pic_search_input", "")).strip()
             if val:
                 st.session_state["search_patient_id"] = val
+                st.query_params["patient_id"] = val
             st.rerun()
 
     st.caption("⚡ เคสตัวอย่างสำหรับทดสอบระบบ (Quick Clinical Scenarios):")
