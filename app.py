@@ -356,6 +356,7 @@ def main() -> None:
             st.cache_data.clear()
             st.toast("✅ ล้างข้อมูลแคชเรียบร้อยแล้ว กำลังโหลดข้อมูลใหม่...")
             st.rerun()
+        st.caption("🚀 Version: **v2.4.0** | Clinical KDIGO & KM Analytics")
 
     # ── 6. Accessible Breadcrumb Navigation ────────────────────────────────────
     active_page_meta = PAGES[target_page_key]
@@ -380,6 +381,7 @@ def main() -> None:
             sales_df = load_real_sales_data()
             snap_df, enc_df, _ = load_synthetic_dataset()
             mod = importlib.import_module("views.executive_overview")
+            mod = importlib.reload(mod)
             run_with_error_boundary(
                 active_page_meta["title"],
                 mod.render_executive_overview_view,
@@ -395,6 +397,7 @@ def main() -> None:
             snap_df, enc_df, _ = load_synthetic_dataset()
             clin_base = snap_df if not snap_df.empty else enc_df
             mod = importlib.import_module("views.lead_intelligence")
+            mod = importlib.reload(mod)
             run_with_error_boundary(
                 active_page_meta["title"],
                 mod.render_lead_intelligence_view,
@@ -411,6 +414,7 @@ def main() -> None:
                 summary_pts = pd.DataFrame()
 
             mod = importlib.import_module("views.patient_card")
+            mod = importlib.reload(mod)
             run_with_error_boundary(
                 active_page_meta["title"],
                 mod.render_patient_card_view,
@@ -423,6 +427,7 @@ def main() -> None:
         with st.spinner("กำลังรวบรวมข้อมูลศูนย์ติดตามโรคเรื้อรัง (Clinical Command Center)..."):
             snap_df, enc_df, _ = load_synthetic_dataset()
             mod = importlib.import_module("views.clinical_tracking")
+            mod = importlib.reload(mod)
             run_with_error_boundary(
                 active_page_meta["title"],
                 mod.render_clinical_tracking_view,
